@@ -1,0 +1,210 @@
+# Pool configuration for the khavis.
+#
+# This file is loaded by scripts/start.sh to drive health-check prints
+# and to give operators a single place to override per-pool defaults
+# (model name, endpoint override, capability tweaks, ...).
+#
+# Adding a new pool typically only requires:
+#   1. drop a new plugin into providers/
+#   2. add an entry here referencing its ``name`` attribute
+# No Python code changes are needed.
+
+pools:
+  - name: "MiniMax-M3"
+    provider_id: "MiniMax"
+    # Token-plan endpoint (OpenAI-compatible). The same coding-plan key
+    # (MINIMAX_API_KEY / sk-cp-…) drives Codex on the dev machines.
+    endpoint: "https://api.minimax.cn/v1"
+    model: "MiniMax-M3.1-Flash"
+    models:
+      - "MiniMax-M3.1-Flash"
+      - "MiniMax-M3"
+    env_key: "MINIMAX_API_KEY"
+
+  - name: "JUAPI-TokenRouter"
+    provider_id: "openai_compat"
+    # JUAPI exposes OpenAI-compatible /v1 endpoints; exact model access is
+    # account/token-group dependent and can be edited from /agents.
+    endpoint: "https://www.juapi.net/v1"
+    model: "kimi-k3.1-pro"
+    models:
+      - "kimi-k3.1-pro"
+      - "gemini-4-argon"
+    env_key: "JUAPI_API_KEY"
+    notes: "Claude Code uses the Anthropic root URL; Codex uses this /v1 URL."
+
+  - name: "MiMo-Code"
+    provider_id: "mimo"
+    # Anthropic Messages API on the MiMo token plan — the same relay
+    # Claude Code uses via ANTHROPIC_BASE_URL. No OpenAI-compatible surface.
+    endpoint: "https://token-plan-cn.xiaomimimo.com/anthropic"
+    model: "mimo-v2.6-pro"
+    env_key: "MIMO_AUTH_TOKEN"
+
+  - name: "GLM-5.3"
+    provider_id: "glm"
+    endpoint: "https://open.bigmodel.cn/api/paas/v4"
+    model: "glm-5.3-flashx"
+    models:
+      - "glm-5.3-flashx"
+      - "glm-5.3-flash"
+      - "glm-5.3"
+      - "codegeex-4"
+    env_key: "ZHIPUAI_API_KEY"
+
+  - name: "Google-Gemini"
+    provider_id: "gemini"
+    endpoint: "https://generativelanguage.googleapis.com"
+    models:
+      - "gemini-4-argon"
+      - "gemini-flash-latest"
+      - "gemini-pro-latest"
+    env_key: "GOOGLE_API_KEY"
+
+  # Disabled 2026-10-13 via `khavis doctor --deep`. These pass health_check
+  # (key, endpoint and model are all configured) yet every real request fails,
+  # so leaving them in just burns a failover attempt on each call.
+  #
+  # NOTE: `discover()` instantiates every plugin under providers/, so deleting
+  # or commenting out an entry here does NOT stop a pool from being served.
+  # `disabled: true` is what actually removes it.
+  - name: "NVIDIA-Cloud"
+    provider_id: "nvidia"
+    endpoint: "https://integrate.api.nvidia.com/v1"
+    model: "meta/llama-3.3-70b-instruct"
+    env_key: "NVIDIA_API_KEY"
+    disabled: true  # 410 Gone — this model id is no longer served
+
+  - name: "DeepSeek-V4-Pro"
+    provider_id: "volcano"
+    endpoint: "https://ark.cn-beijing.volces.com/api/v3"
+    model: "deepseek-v4-pro"
+    env_key: "BYTEDANCE_API_KEY"
+    disabled: true  # 404 InvalidEndpointOrModel.NotFound
+
+  - name: "DeepSeek-V4.1-Flash"
+    provider_id: "volcano"
+    endpoint: "https://ark.cn-beijing.volces.com/api/v3"
+    model: "deepseek-v4.1-flash"
+    env_key: "BYTEDANCE_API_KEY"
+    disabled: true  # 404 InvalidEndpointOrModel.NotFound
+
+  - name: "GLM-5.3-Flash"
+    provider_id: "volcano"
+    endpoint: "https://ark.cn-beijing.volces.com/api/v3"
+    model: "glm-5.3-flash"
+    env_key: "BYTEDANCE_API_KEY"
+    disabled: true  # 404 InvalidEndpointOrModel.NotFound
+
+  - name: "OpenRouter-Free"
+    provider_id: "openrouter"
+    endpoint: "https://openrouter.ai/api/v1"
+    model: "meta-llama/llama-3.1-8b-instruct:free"
+    env_key: "OPENROUTER_API_KEY"
+    disabled: true  # 404 — OpenRouter retired the ":free" suffix for this model
+
+  # Claude-API (401, rotate the key) and GLM-5.3 (out of quota) stay enabled
+  # on purpose: both recover on their own, and `khavis chat` now fails over
+  # past them automatically. Disabling them would mean re-enabling by hand.
+
+  - name: "OpenAI-API"
+    provider_id: "openai"
+    endpoint: "https://api.openai.com/v1"
+    model: "gpt-5-mini"
+    env_key: "OPENAI_API_KEY"
+    region: us
+    tier: platform_api
+    notes: "Requires OpenAI Platform API key (separate from ChatGPT subscription). Sign up at https://platform.openai.com"
+
+  - name: "Claude-API"
+    provider_id: "claude"
+    endpoint: "https://api.anthropic.com"
+    model: "claude-haiku-4-5-20251001"
+    env_key: "ANTHROPIC_API_KEY"
+    region: us
+    tier: platform_api
+    notes: "Requires Anthropic API key (separate from Claude Code/Cursor subscription). Sign up at https://console.anthropic.com"
+
+  - name: "Ollama-Mac"
+    provider_id: "ollama"
+    # Over Tailscale, not localhost: the router frequently runs on a cloud
+    # VM whose own Ollama is a different box with different models. Left at
+    # localhost this pool reported healthy (endpoint 200) and then 404'd on
+    # chat, because the model lives on the Mac.
+    endpoint: "http://${MAC_IP}:11434"
+    model: "gemma4:e2b"
+    env_key: null
+
+  - name: "Ollama-Surface"
+    provider_id: "ollama"
+    # Tailscale IP too — 192.168.x.x is unreachable from a cloud origin.
+    endpoint: "http://${SURFACE_IP}:11434"
+    model: "qwen2.5:1.5b"
+    env_key: null
+
+  # --- OpenAI-compatible long tail (providers/openai_compat.py) -------
+  - name: "Groq-Llama"
+    provider_id: "openai_compat"
+    endpoint: "https://api.groq.com/openai/v1"
+    model: "llama-3.3-70b-versatile"
+    env_key: "GROQ_API_KEY"
+
+  - name: "Mistral-Large"
+    provider_id: "openai_compat"
+    endpoint: "https://api.mistral.ai/v1"
+    model: "mistral-large-latest"
+    env_key: "MISTRAL_API_KEY"
+
+  - name: "Cohere-Command"
+    provider_id: "openai_compat"
+    endpoint: "https://api.cohere.ai/compatibility/v1"
+    model: "command-r-plus"
+    env_key: "COHERE_API_KEY"
+
+  - name: "xAI-Grok"
+    provider_id: "openai_compat"
+    endpoint: "https://api.x.ai/v1"
+    model: "grok-3"
+    env_key: "XAI_API_KEY"
+
+  - name: "Together-Llama"
+    provider_id: "openai_compat"
+    endpoint: "https://api.together.xyz/v1"
+    model: "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+    env_key: "TOGETHER_API_KEY"
+
+  - name: "Fireworks-Llama"
+    provider_id: "openai_compat"
+    endpoint: "https://api.fireworks.ai/inference/v1"
+    model: "accounts/fireworks/models/llama-v3p3-70b-instruct"
+    env_key: "FIREWORKS_API_KEY"
+
+  - name: "Perplexity-Sonar"
+    provider_id: "openai_compat"
+    endpoint: "https://api.perplexity.ai"
+    model: "sonar-pro"
+    env_key: "PERPLEXITY_API_KEY"
+
+  - name: "Moonshot-Kimi"
+    provider_id: "openai_compat"
+    endpoint: "https://api.moonshot.cn/v1"
+    model: "kimi-k2-0905-preview"
+    env_key: "MOONSHOT_API_KEY"
+
+  - name: "Qwen-DashScope"
+    provider_id: "openai_compat"
+    endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model: "qwen-max"
+    env_key: "DASHSCOPE_API_KEY"
+
+  - name: "DeepSeek-Official"
+    provider_id: "openai_compat"
+    endpoint: "https://api.deepseek.com/v1"
+    model: "deepseek-chat"
+    env_key: "DEEPSEEK_API_KEY"
+
+  - name: "HuggingFace-Inference"
+    provider_id: "openai_compat"
+    endpoint: "https://router.huggingface.co/v1"
+    model: "meta-llama/Llama-3.3-70B-Instruct"
+    env_key: "HF_API_KEY"

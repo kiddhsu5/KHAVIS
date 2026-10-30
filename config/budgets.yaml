@@ -1,0 +1,37 @@
+# Token / cost budgets for the khavis.
+#
+# Loaded by ``core.budget.load_policy()``. All limits are *soft caps*
+# enforced at the router edge — a single huge completion can overshoot
+# the request cap; the next call is blocked until the session resets.
+#
+# Env overrides (win over this file):
+#   KHAVIS_BUDGET_MAX_TOKENS_REQUEST
+#   KHAVIS_BUDGET_MAX_TOKENS_SESSION
+#   KHAVIS_BUDGET_MAX_COST_SESSION_USD
+#   KHAVIS_BUDGET_WINDOW_S
+
+policy:
+  # Hard ceiling for a single chat() call (prompt + completion estimate).
+  max_tokens_per_request: 32000
+  # Rolling window cap per session_id (bot chat, CLI session, …).
+  max_tokens_per_session: 400000
+  # Approximate USD cap per session. 0 disables the cost check.
+  max_cost_per_session_usd: 5.0
+  # Session usage window in seconds (sliding).
+  window_s: 3600
+  # When true, over-budget pools are skipped by CapabilityRouter.select().
+  filter_router: true
+
+# Optional USD per 1K tokens for cost estimates. Missing pool ⇒ cost 0
+# (only token caps apply). Values are approximate list prices 2026.
+pricing_usd_per_1k:
+  MiniMax-M3: 0.0
+  MiMo-Code: 0.0
+  GLM-5.3: 0.0
+  Google-Gemini: 0.0
+  OpenAI-API: 0.003
+  Claude-API: 0.004
+  DeepSeek-V4-Pro: 0.0
+  OpenRouter-Free: 0.0
+  Ollama-Mac: 0.0
+  Ollama-Surface: 0.0

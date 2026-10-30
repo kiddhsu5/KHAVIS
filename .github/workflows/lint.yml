@@ -1,0 +1,70 @@
+name: khavis-lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: khavis-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ruff:
+    name: Ruff (check + format)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
+
+      - name: Install ruff
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ruff
+
+      - name: ruff check
+        run: python -m ruff check providers/ core/ server/ agents/ scripts/ tests/
+
+      - name: ruff format --check
+        run: python -m ruff format --check providers/ core/ server/ agents/ scripts/ tests/
+
+  mypy:
+    name: mypy (files from pyproject [tool.mypy])
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
+
+      - name: Install dependencies + mypy
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,bot,server,agents]"
+
+      - name: mypy
+        run: |
+          python -m mypy \
+            --no-error-summary \
+            --pretty

@@ -1,0 +1,49 @@
+# Dockerfile for the K.H.A.V.I.S. Telegram dispatch bot in **polling** mode.
+#
+# Polling mode makes outbound HTTPS calls to api.telegram.org — no
+# inbound port is required, no Caddy, no TLS, no DNS record needed.
+# Suitable for a single-user bot behind NAT or on a bare VPS with
+# only port 22 open.
+#
+# Build:   docker build -t khavis-bot:polling -f deploy/Dockerfile.polling .
+# Run:     docker compose -f deploy/docker-compose.polling.yml --env-file .env up -d
+#
+# Secrets (BOT_TOKEN, WEBHOOK_SECRET, ALLOWED_CHAT_IDS) come from the
+# compose environment, never from this image.
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Runtime deps. ``requirements.txt`` carries the multi-agent stack
+# (anthropic / langgraph / langchain-* / chromadb) which the bot's
+# ``khavis`` backend needs; ``.[bot]`` adds the FastAPI + httpx
+# pieces the Telegram webhook/polling layer needs. No editable install.
+COPY pyproject.toml requirements.txt ./
+COPY core     ./core
+COPY providers ./providers
+COPY bot      ./bot
+COPY config   ./config
+COPY agents   ./agents
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends procps build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir \
+        'fastapi>=0.110' 'uvicorn[standard]>=0.27' 'httpx>=0.27' \
+    && apt-get purge -y build-essential && apt-get autoremove -y
+
+# Polling mode has no inbound port — only outbound HTTPS to
+# api.telegram.org. There is no /healthz to probe, so the healthcheck
+# just verifies the bot process is still alive.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+    CMD pgrep -f "bot.main" >/dev/null || exit 1
+
+# `--mode polling` long-polls getUpdates. No Caddy, no TLS.
+CMD ["python", "-m", "bot.main", "--mode", "polling"]

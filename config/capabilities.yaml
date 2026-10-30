@@ -1,0 +1,173 @@
+# Capability → pool mappings for the khavis.
+#
+# Each entry advertises a capability tag (see providers/* capabilities[])
+# and a list of pool names that satisfy it. ``weight`` controls the
+# weighted-random share used by ``CapabilityRouter.select``.
+#
+# ``pools`` accepts (see core.capability_router.CapabilityEntry):
+#   - plain names           → use the entry-wide ``weight``
+#   - ``- "Pool": 0.85``    → per-pool weight override (single-key map)
+#   - a full map ``{A: 1.2, B: 0.85}`` instead of a list
+# List order is preserved and is the failover order for strategy=priority.
+# A weight of 0 means "never pick under weighted routing".
+#
+# Pool names referenced here MUST match the ``name`` attribute of the
+# corresponding plugin instance (see providers/* for the canonical list).
+#
+# Note: pools backed by ``BYOK-only`` providers (OpenAI Platform API,
+# Claude API, NVIDIA Cloud) carry an explicit per-pool weight of 0.85
+# (``- "OpenAI-API": 0.85``) because they require a separate billing
+# account and may not be configured by every user. Every other pool uses
+# its entry's ``weight`` (0.9–1.3).
+
+capabilities:
+  - capability: "中文"
+    pools:
+      - "MiniMax-M3"
+      - "MiMo-Code"
+      - "GLM-5.3"
+      - "DeepSeek-V4-Pro"
+      - "DeepSeek-V4.1-Flash"
+      - "GLM-5.3-Flash"
+      - "Ollama-Mac"
+      - "Ollama-Surface"
+      - "Moonshot-Kimi"
+      - "Qwen-DashScope"
+      - "DeepSeek-Official"
+    weight: 1.0
+
+  - capability: "英文"
+    pools:
+      - "Google-Gemini"
+      - "NVIDIA-Cloud": 0.85
+      - "OpenRouter-Free"
+      - "DeepSeek-V4-Pro"
+      - "Ollama-Mac"
+      - "OpenAI-API": 0.85
+      - "Claude-API": 0.85
+      - "MiMo-Code"
+      - "Groq-Llama"
+      - "Mistral-Large"
+      - "Cohere-Command"
+      - "xAI-Grok"
+      - "Together-Llama"
+      - "Fireworks-Llama"
+      - "Perplexity-Sonar"
+      - "HuggingFace-Inference"
+    weight: 1.0
+
+  - capability: "程式碼"
+    pools:
+      - "GLM-5.3"
+      - "DeepSeek-V4-Pro"
+      - "NVIDIA-Cloud": 0.85
+      - "OpenAI-API": 0.85
+      - "MiMo-Code"
+      - "Groq-Llama"
+      - "Mistral-Large"
+      - "xAI-Grok"
+      - "Together-Llama"
+      - "Fireworks-Llama"
+      - "Moonshot-Kimi"
+      - "Qwen-DashScope"
+      - "DeepSeek-Official"
+    weight: 1.2
+
+  - capability: "推理"
+    pools:
+      - "MiniMax-M3"
+      - "MiMo-Code"
+      - "GLM-5.3"
+      - "Google-Gemini"
+      - "NVIDIA-Cloud": 0.85
+      - "DeepSeek-V4-Pro"
+      - "OpenAI-API": 0.85
+      - "Claude-API": 0.85
+      - "Mistral-Large"
+      - "Cohere-Command"
+      - "xAI-Grok"
+      - "Moonshot-Kimi"
+      - "Qwen-DashScope"
+      - "DeepSeek-Official"
+      - "Perplexity-Sonar"
+    weight: 1.3
+
+  - capability: "工具調用"
+    pools:
+      - "MiniMax-M3"
+      - "MiMo-Code"
+      - "GLM-5.3"
+      - "Google-Gemini"
+      - "NVIDIA-Cloud": 0.85
+      - "DeepSeek-V4-Pro"
+      - "OpenAI-API": 0.85
+      - "Claude-API": 0.85
+      - "Mistral-Large"
+      - "Cohere-Command"
+      - "Qwen-DashScope"
+    weight: 1.0
+
+  - capability: "Embedding"
+    pools:
+      - "Google-Gemini"
+      - "NVIDIA-Cloud": 0.85
+      - "Ollama-Mac"
+      - "Ollama-Surface"
+    weight: 1.0
+
+  - capability: "長文"
+    pools:
+      - "Claude-API": 0.85
+      - "MiMo-Code"
+      - "Google-Gemini"
+      - "Mistral-Large"
+      - "Cohere-Command"
+      - "xAI-Grok"
+      - "Perplexity-Sonar"
+      - "Moonshot-Kimi"
+    weight: 0.9
+
+  - capability: "速度優先"
+    pools:
+      - "Google-Gemini"
+      - "DeepSeek-V4.1-Flash"
+      - "GLM-5.3-Flash"
+      - "OpenRouter-Free"
+      - "Ollama-Mac"
+      - "OpenAI-API": 0.85
+      - "Groq-Llama"
+      - "Fireworks-Llama"
+    weight: 1.0
+
+  - capability: "辯論"
+    pools:
+      - "MiniMax-M3"
+      - "MiMo-Code"
+      - "GLM-5.3"
+      - "DeepSeek-V4-Pro"
+      - "Google-Gemini"
+      - "OpenAI-API": 0.85
+      - "Claude-API": 0.85
+      - "Moonshot-Kimi"
+      - "Qwen-DashScope"
+      - "Mistral-Large"
+      - "xAI-Grok"
+    weight: 1.0
+
+  - capability: "審查"
+    pools:
+      - "GLM-5.3"
+      - "DeepSeek-V4-Pro"
+      - "Google-Gemini"
+      - "OpenAI-API": 0.85
+      - "Claude-API": 0.85
+    weight: 1.1
+
+  - capability: "驗證"
+    pools:
+      - "GLM-5.3"
+      - "DeepSeek-V4-Pro"
+      - "Google-Gemini"
+      - "OpenAI-API": 0.85
+      - "Claude-API": 0.85
+    weight: 1.0

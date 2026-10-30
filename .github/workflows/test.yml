@@ -1,0 +1,180 @@
+name: khavis-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  test:
+    name: pytest (${{ matrix.os }} / py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('requirements.txt', 'pyproject.toml') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py${{ matrix.python-version }}-
+            pip-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install the package with every extra the unit tests import
+          # (server/bot tests need fastapi + httpx, agents need langgraph).
+          python -m pip install -e ".[dev,bot,server,agents,rag]"
+
+      - name: Run pytest (unit)
+        run: |
+          python -m pytest tests/ -v \
+            --ignore=tests/integration \
+            --ignore=tests/benchmarks \
+            --cov=core \
+            --cov=providers \
+            --cov-report=xml \
+            --cov-report=term
+
+      - name: Run plugin smoke test
+        run: python scripts/test_plugins.py
+
+      - name: Run zero-quota demo without provider secrets
+        run: python examples/zero_quota_demo.py --json
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == env.PYTHON_VERSION
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: khavis-codecov
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  benchmarks:
+    name: benchmarks (ubuntu / py3.12)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ hashFiles('requirements.txt', 'pyproject.toml') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+
+      - name: Run router benchmarks
+        run: |
+          python -m pytest tests/benchmarks/ -v --no-header -s
+
+  packaging:
+    name: wheel smoke test (ubuntu / py3.12)
+    runs-on: ubuntu-latest
+    steps:
+      # Every other job installs from requirements.txt, which masks anything
+      # missing from pyproject.toml. This job is the only one that exercises
+      # what `pip install khavis` actually produces.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Build wheel + sdist
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build --sdist --wheel
+          python -m twine check dist/*
+
+      - name: Install the wheel into a clean env (bare deps)
+        run: |
+          python -m venv /tmp/wheelenv
+          /tmp/wheelenv/bin/python -m pip install --upgrade pip
+          /tmp/wheelenv/bin/python -m pip install dist/*.whl
+
+      - name: Bare install must not need optional extras
+        run: |
+          /tmp/wheelenv/bin/khavis --version
+          /tmp/wheelenv/bin/khavis health
+          /tmp/wheelenv/bin/python -c "
+          import core, providers, agents
+          from core.health import PoolHealthTracker, HealthPolicy
+          from core.capability_router import CapabilityRouter
+          from core.registry import PluginRegistry
+          print('bare install ok')
+          "
+
+      - name: "`server` extra must provide a working khavis-serve"
+        run: |
+          /tmp/wheelenv/bin/python -m pip install 'khavis[server] @ file://$PWD/'$(ls dist/*.whl | xargs -n1 basename)
+          /tmp/wheelenv/bin/khavis-serve --help
+          /tmp/wheelenv/bin/python -c "
+          from server.openai_api import _call_with_failover
+          print('server import ok')
+          "
+
+      - name: Failover must behave on the installed package
+        run: |
+          /tmp/wheelenv/bin/python -c "
+          from core.health import PoolHealthTracker, HealthPolicy
+          t = PoolHealthTracker(HealthPolicy(failure_threshold=1))
+          t.record_failure('X', 'HTTP 429 rate limit')
+          assert t.get('X').state.value == 'exhausted', t.get('X').state
+          assert t.is_available('X') is False
+          t.record_failure('Y', 'ConnectionResetError')
+          assert t.get('Y').state.value == 'open', t.get('Y').state
+          assert t.is_available('Y') is False
+          print('failover ok')
+          "

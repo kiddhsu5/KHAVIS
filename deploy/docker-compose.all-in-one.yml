@@ -1,0 +1,128 @@
+# K.H.A.V.I.S. All-in-One Docker Compose
+# Integrates:
+#   1. khavis-status: Real-time quota & dispatch dashboard on http://localhost:8080/dashboard
+#   2. khavis-api: OpenAI-compatible router & failover API on http://localhost:8000/v1
+#   3. ollama: Local inference engine for zero-downtime offline safeguard on http://localhost:11434
+#   4. ollama-init: Automatically pulls the fallback model on first startup
+#
+# Usage:
+#   docker compose -f deploy/docker-compose.all-in-one.yml up -d
+#   open http://localhost:8080/dashboard
+
+services:
+  # ---------------------------------------------------------------------------
+  # 1. Real-time Quota & Dispatch Status Dashboard
+  # ---------------------------------------------------------------------------
+  khavis-status:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: khavis-status
+    restart: unless-stopped
+    command: ["python3", "-m", "scripts.status_server", "--port", "8080"]
+    ports:
+      - "8080:8080"
+    environment:
+      - KHAVIS_LOCAL_FALLBACK=1
+      - KHAVIS_WEBHOOK_URL=${KHAVIS_WEBHOOK_URL:-}
+      - KHAVIS_ALERT_COOLDOWN_S=${KHAVIS_ALERT_COOLDOWN_S:-300}
+      - MAC_IP=ollama
+      - SURFACE_IP=ollama
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - ../config:/app/config:ro
+      - ../logs:/app/logs
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - khavis-net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # 2. OpenAI-Compatible API Proxy & Failover Router
+  # ---------------------------------------------------------------------------
+  khavis-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: khavis-api
+    restart: unless-stopped
+    command: ["python3", "-m", "uvicorn", "server.openai_api:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      - KHAVIS_LOCAL_FALLBACK=1
+      - KHAVIS_AGENT_ESCALATION=1
+      - KHAVIS_WEBHOOK_URL=${KHAVIS_WEBHOOK_URL:-}
+      - KHAVIS_ALERT_COOLDOWN_S=${KHAVIS_ALERT_COOLDOWN_S:-300}
+      - MAC_IP=ollama
+      - SURFACE_IP=ollama
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - ../config:/app/config:ro
+      - ../logs:/app/logs
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - khavis-net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # 3. Local Ollama Engine (Zero-Downtime Safeguard)
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: khavis-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - khavis-net
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # 4. Helper container to pull the default fallback model
+  # ---------------------------------------------------------------------------
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: khavis-ollama-init
+    restart: "no"
+    environment:
+      - OLLAMA_HOST=ollama:11434
+      - FALLBACK_MODEL=${OLLAMA_FALLBACK_MODEL:-gemma4:e2b}
+    command: ["sh", "-c", "echo 'Pulling fallback model...' && ollama pull $$FALLBACK_MODEL && echo 'Model ready!'"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - khavis-net
+
+networks:
+  khavis-net:
+    driver: bridge
+
+volumes:
+  ollama_models:
+    name: khavis_ollama_models

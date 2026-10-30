@@ -1,0 +1,27 @@
+# Fine-tuned / overridden model registry (v0.5.0).
+#
+# Override the default model for any pool, or register a custom
+# fine-tune. Applied by ``core.registry.apply_model_overrides()`` when a
+# caller invokes it (currently ``scripts/live_api_check.py``).
+#
+# NOT hot-reloaded: neither ``khavis serve`` nor ``scripts/start.sh``
+# watches this file (start.sh only watches pools.yaml + capabilities.yaml).
+# apply_model_overrides() is idempotent, so a caller may re-apply it after
+# edits; removing an override restores the pool's original model.
+
+overrides:
+  # Example: point Groq at a self-hosted fine-tune instead of Llama-3.3
+  # - pool: Groq-Llama
+  #   model: my-org/ft-llama-custom
+  #   notes: "internal fine-tune 2026-09"
+
+  - pool: MiniMax-M3
+    model: MiniMax-M3
+    notes: "token plan default"
+
+custom_models:
+  # Register a fine-tune that is not in any provider's public list.
+  # - name: ft-coder-cn
+  #   pool: Qwen-DashScope
+  #   model: ft-coder-cn-2026-09
+  #   capabilities: [中文, 程式碼]

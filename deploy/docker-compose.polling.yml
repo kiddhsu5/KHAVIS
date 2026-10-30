@@ -1,0 +1,35 @@
+# docker-compose for khavis-bot in **polling** mode.
+#
+# Usage:
+#   cp deploy/.env.example .env  # fill in BOT_TOKEN, ALLOWED_CHAT_IDS
+#   docker compose -f deploy/docker-compose.polling.yml --env-file .env up -d --build
+#
+# Polling mode makes outbound HTTPS calls to api.telegram.org — no
+# inbound port is required (only SSH to administer). No Caddy, no TLS,
+# no DNS record. Perfect for a bare VPS with just port 22 open.
+#
+# For webhook mode (public HTTPS + Caddy + TLS), see
+# deploy/docker-compose.yml instead.
+
+services:
+  bot:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.polling
+    image: khavis-bot:polling
+    container_name: khavis-bot
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      BOT_MODE: polling
+    networks: [botnet]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f bot.main >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+networks:
+  botnet:
+    driver: bridge

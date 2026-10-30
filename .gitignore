@@ -1,0 +1,108 @@
+# Python — standard ignores
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache
+.pytest_debug.log
+
+# mypy / linters
+.mypy_cache/
+.ruff_cache/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*~
+
+# Secrets — NEVER commit
+.env
+.env.*
+!.env.example
+deploy/.env
+deploy/certs/*.pem
+
+# Handoff & internal business/strategy notes — keep local, do not commit to public repo.
+HANDOFF.local.md
+docs/HANDOFF.md
+BUSINESS_PLAN.md
+RELEASE_CHECKLIST.md
+docs/STRATEGY.md
+docs/juapi-integration-research.md
+docs/manus-command-console.md
+docs/superpowers/
+blog/
+
+# Shared workspace & runtime outputs
+.work/
+workspace/
+outputs/
+config/custom_agents.json
+
+# Project runtime data
+memory/episodic.sqlite
+memory/episodic.sqlite-journal
+memory/semantic/*.sqlite3
+memory/semantic/*.parquet
+logs/*.jsonl
+logs/*.log
+# Per-request audit log (core/audit.py, default config/audit.jsonl)
+config/audit.jsonl
+config/audit.jsonl.*
+# Chroma creates this when a store is opened against a literal ":memory:" name
+:memory:.ses
+
+# Build / packaging
+*.bak
+*.save
+*.clobbered
+
+# K.H.A.V.I.S. — local runtime data & user-local config (never commit)
+.env
+.env.*
+!.env.example
+config/workbench_catalog.json
+config/custom_agents.json
+config/audit.jsonl
+workspace/
+logs/
+memory/
+outputs/
+backups/
+.rag/
+.pytest_cache/
+*.ses
+HANDOFF.local.md

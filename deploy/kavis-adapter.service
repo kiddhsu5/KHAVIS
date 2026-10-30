@@ -1,0 +1,30 @@
+# K.A.V.I.S. dispatch adapter — systemd USER unit（騰訊雲 VM，ubuntu 使用者）
+#
+# 安裝：
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/kavis-adapter.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now kavis-adapter
+#
+# 驗證：
+#   systemctl --user status kavis-adapter
+#   curl -s http://127.0.0.1:18081/healthz   # 應回 {"ok": true, ...}
+#
+# 選配：設 KAVIS_ADAPTER_TOKEN 後，Workbench .env 也要設同值 KAVIS_TENCENT_API_KEY。
+
+[Unit]
+Description=K.A.V.I.S. dispatch adapter (OpenAI-compatible bridge to hermes -z)
+After=network-online.target hermes-gateway.service
+
+[Service]
+Type=simple
+Environment=HERMES_HOME=__HERMES_HOME__
+Environment=PATH=__HERMES_HOME__/hermes-agent/node_modules/.bin:__HERMES_HOME__/tools/node-26.7.0-linux-x64/bin:__HERMES_HOME__/tools/npm-12.0.2-linux-x64/bin:__HOME__/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# Environment=KAVIS_ADAPTER_TOKEN=
+# Environment=KAVIS_ADAPTER_TIMEOUT_S=170
+ExecStart=/usr/bin/python3 __HERMES_HOME__/kavis_adapter.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

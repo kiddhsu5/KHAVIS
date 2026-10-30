@@ -1,0 +1,53 @@
+# Health / circuit-breaker policy (v0.2.0)
+#
+# 這份檔案控制 K.H.A.V.I.S. 什麼時候「不再把請求送去某個 pool」。
+# 有了它，README 承諾的 zero quota interruption 才是真的：
+#   429 / quota 耗盡 → 該 pool 標記 EXHAUSTED，立刻改送下一個；
+#                      exhausted_cooldown_s 後放一次探測
+#   連續失敗       → 該 pool 熔斷 (OPEN)，冷卻結束後放「一個」探測 (HALF_OPEN)；
+#                      探測回報前其他請求都不會送進去，探測失敗立刻回到 OPEN
+#
+# 注意：背景 refresh（health_check）只能把 UNKNOWN 變 CLOSED、更新 quota /
+# EXHAUSTED；它不會把 OPEN/HALF_OPEN 的熔斷器關掉——多數 plugin 的
+# health_check 只檢查 key 是否存在，不足以證明恢復。
+#
+# 所有欄位都能用環境變數覆蓋（見 core/health.py 的 env_map）：
+#   KHAVIS_HEALTH_FAILURE_THRESHOLD
+#   KHAVIS_HEALTH_COOLDOWN_S
+#   KHAVIS_HEALTH_SUCCESS_THRESHOLD
+#   KHAVIS_HEALTH_RESPECT_QUOTA
+#   KHAVIS_HEALTH_FILTER_ROUTER
+#   KHAVIS_HEALTH_ALLOW_HALF_OPEN
+#   KHAVIS_HEALTH_ON_ALL_UNAVAILABLE
+#   KHAVIS_HEALTH_EXHAUSTED_COOLDOWN_S
+
+health:
+  # 連續失敗幾次就熔斷。設 1 = 第一次錯就跳過（適合配額燒很快的 pool）。
+  failure_threshold: 3
+
+  # 熔斷後冷卻幾秒。冷卻到了放一個探測請求，探測成功才真的恢復。
+  # 探測若超過這麼久都沒回報（呼叫端掛掉），才允許下一個探測。
+  cooldown_s: 60.0
+
+  # EXHAUSTED（429 / quota 用完）後等幾秒放一個探測，探測成功就恢復。
+  # 0 = 只有成功呼叫或 quota refresh 回報 remaining > 0 才恢復。
+  exhausted_cooldown_s: 300.0
+
+  # HALF_OPEN 狀態下要連續成功幾次才完全關閉熔斷器。
+  success_threshold: 1
+
+  # 認真對待 check_quota()：remaining == 0 的 pool 不送流量。
+  respect_quota: true
+
+  # 在 CapabilityRouter.select() 裡套用可用性過濾。
+  # 設 false 會退回舊行為（不看健康狀態），僅供除錯。
+  filter_router: true
+
+  # 所有候選都不可用時怎麼辦：
+  #   "fail"    → select() 回傳 None，呼叫端丟清楚的 503（推薦）
+  #   "degrade" → 回傳原候選清單（依 YAML 順序 / 路由策略），呼叫端仍會嘗試
+  #               （服務不中斷，但可能送進壞的 pool）
+  on_all_unavailable: "fail"
+
+  # 冷卻結束後是否允許半開探測。設 false = 熔斷就是永久封鎖到手動重置。
+  allow_half_open: true

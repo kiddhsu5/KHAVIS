@@ -1,0 +1,37 @@
+[Unit]
+Description=khavis.example.com status page (live LLM pool health)
+Documentation=https://github.com/kiddhsu5/K.H.A.V.I.S.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=__KHAVIS_HOME__
+# .env IS required: pool health_check() has to see the API keys (and
+# SURFACE_IP, which pools.yaml expands) to tell a working pool from a
+# misconfigured one. Anything sensitive is redacted before it reaches
+# the public page — see scripts/status_server.py:_redact().
+EnvironmentFile=__KHAVIS_HOME__/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=__KHAVIS_HOME__/.venv/bin/python __KHAVIS_HOME__/scripts/status_server.py --port 80 --tls-port 443 --cert /var/cache/khavis-status/cert.pem --key /var/cache/khavis-status/key.pem
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=khavis-status
+
+# CacheDirectory creates /var/cache/khavis-status (writable) before the
+# namespace is built. Do NOT put the cert under ReadWritePaths=/etc/... —
+# systemd sets up those bind mounts before ExecStartPre runs, so a path
+# that does not exist yet aborts the unit with status=226/NAMESPACE.
+CacheDirectory=khavis-status
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=__KHAVIS_HOME__/logs
+
+[Install]
+WantedBy=multi-user.target

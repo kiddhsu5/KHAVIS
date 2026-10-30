@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+env/
+
+# VCS / IDE
+.git/
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Secrets / env
+.env
+.env.*
+*.pem
+*.key
+
+# Tests, docs, meta (keep README only)
+tests/
+docs/
+*.md
+!README.md
+
+# CI config — not needed in image
+.github/
+
+# Build artefacts
+build/
+dist/
+*.whl
+*.tar.gz
