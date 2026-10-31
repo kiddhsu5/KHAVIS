@@ -22,18 +22,18 @@
 | `khavis chat` / `khavis doctor` | E1 | 單元測試 | 真實請求需 BYOK，見下行 |
 | 真實供應商請求（chat / doctor --deep） | E2（條件式） | 文件指令 + 自己的 provider key | 非離線可證；供應商可用性不在本專案保證範圍 |
 | OpenAI 相容 HTTP API（`khavis serve`） | E1 | `tests/test_server_api.py` | 上游仍需配置 |
-| 離線 failover 演練 `examples/zero_quota_demo.py` | **E2** | 無 key、無網路直接可跑，輸出含 `external_network: false` | 只驗證控制流程，不是可用性證明 |
+| 離線 failover 演練 `examples/zero_quota_demo.py` | **E2** | macOS + Windows 實機通過，無 key、無網路直接可跑，輸出含 `external_network: false` | 只驗證控制流程，不是可用性證明 |
 | Workbench 對話串／歷史分組與搜尋 | E1 | `tests/test_workbench_c.py`（DOM 契約與 JS 語法） | 視覺差異未做逐像素驗證 |
 | 每輪產出文檔內聯清單（下載／預覽） | E1 | 單元測試（output files、白名單） | 預覽型別有上限與白名單 |
 | 執行明細全頁（含交叉審查） | E1 | 單元測試 | 審查內容取決於 agent 是否回傳 |
 | 資料庫依對話串歸檔 | E1 + E2 | 單元測試 + 部署端 API 實測（thread 分組正確） | 歷史紀錄缺漏的檔案落入未歸檔 |
 | 模型「抓取 → 勾選」與刪除持久化 | E1 + E2 | 單元測試 + 部署端實測（刪除後 capabilities 不復活） | 供應商 `/models` 不可達時顯示原因 |
-| K.A.V.I.S. LangGraph 7 角色團隊 | E1（圖譜測試）／E2（條件式） | `tests/` + `examples/relay_quickstart/run_byok.py`（需 BYOK） | 真實執行需 provider key 與 agents extra |
+| K.A.V.I.S. LangGraph 7 角色團隊 | E1（圖譜測試）／E2（條件式） | `tests/` + `examples/relay_quickstart/run_byok.py`（需 BYOK）；離線接力骨架 macOS + Windows 實機通過 | 真實執行需 provider key 與 agents extra |
 | kavis adapter（OpenAI 相容 → hermes） | E2（於自有部署實測） | 端對端派工實測通過 | 外部重現需自行安裝 hermes；目前無 E3 |
 | 外部 CLI 整合（Claude Code / Codex / 其他） | E0 | 僅整合介面與文件 | 須自行安裝、登入；相容性以各 CLI 為準 |
 | Telegram bot | E0–E1 | 文件與部分單元測試 | 需自備 bot token |
 | `deploy/install.sh`（Ubuntu） | E2 | 於 Ubuntu VM 實際執行完成（clone→venv→服務→健康檢查） | 其他發行版未逐一驗證 |
-| `deploy/install.ps1`（Windows） | E0–E1 | 腳本提供與語法檢查 | **尚無 Windows 實機驗證**，歡迎回報 |
+| `deploy/install.ps1`（Windows） | **E2** | Windows 10 + PowerShell 5.1 + Python 3.12 實機完成（clone → venv → 依賴 → .env → 健康檢查 ✓ 200） | 需 Python ≤3.13（3.14+ 部分套件缺 wheel） |
 | Docker / nginx 範例 | E0 | 範例檔 | 部署環境差異需自行調整 |
 
 ## 升級規則
