@@ -16,6 +16,7 @@ from .antigravity import AntigravityBackend
 from .base import Backend, HealthResult
 from .claude import ClaudeBackend
 from .codex import CodexBackend
+from .command_code import CommandCodeBackend
 from .custom import CustomAgentBackend
 from .judge import JudgeBackend
 from .kavis_tencent import KavisTencentBackend
@@ -28,6 +29,7 @@ __all__ = [
     "HealthResult",
     "ClaudeBackend",
     "CodexBackend",
+    "CommandCodeBackend",
     "AntigravityBackend",
     "MinimaxBackend",
     "OpencodeBackend",

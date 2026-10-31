@@ -25,6 +25,7 @@ RESERVED_AGENT_IDS = {
     "antigravity",
     "minimax",
     "opencode",
+    "cmdcode",
     "khavis",
     "kavis-tencent",
     "judge",

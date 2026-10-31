@@ -78,6 +78,17 @@ AGENT_MODEL_SPECS: dict[str, dict[str, Any]] = {
             "glm-4-plus",
         ],
     },
+    "cmdcode": {
+        "env": "COMMAND_CODE_DISPATCH_MODEL",
+        "default": "anthropic/claude-sonnet-4",
+        "label": "Command Code",
+        "options": [
+            "anthropic/claude-sonnet-4",
+            "anthropic/claude-haiku-4",
+            "openai/gpt-5-codex",
+            "deepseek/deepseek-chat",
+        ],
+    },
 }
 
 _MODEL_NAME_RE = re.compile(r"^[A-Za-z0-9._:\-/]{1,80}$")
@@ -94,6 +105,7 @@ _AGENT_PROVIDER_ENVS: dict[str, set[str]] = {
     "antigravity": {"ANTIGRAVITY_API_KEY"},
     "minimax": {"MINIMAX_API_KEY"},
     "opencode": {"ZHIPUAI_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY"},
+    "cmdcode": {"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY", "NVIDIA_API_KEY"},
 }
 
 
@@ -513,6 +525,14 @@ BYOK_PROVIDER_SPECS = [
         "agents": "Antigravity CLI (agy / antigravity-pro)",
         "base_url_env": "",
         "default_base_url": "https://generativelanguage.googleapis.com",
+        "builtin": True,
+    },
+    {
+        "env": "NVIDIA_API_KEY",
+        "label": "NVIDIA NIM API Key",
+        "agents": "Command Code / OpenCode / 自訂 Agent",
+        "base_url_env": "NVIDIA_BASE_URL",
+        "default_base_url": "https://integrate.api.nvidia.com/v1",
         "builtin": True,
     },
     {
@@ -1068,6 +1088,21 @@ def get_agent_fleet_status() -> list[dict[str, Any]]:
             "tier": "Tier-2",
             "icon": "fa-bolt",
             "color": "#F59E0B",
+        },
+        {
+            "id": "cmdcode",
+            "name": "Command Code",
+            "binary": "cmd",
+            "model": active_models["cmdcode"],
+            "default_model": default_models["cmdcode"],
+            "options": model_options["cmdcode"],
+            "adjustable": True,
+            "custom": False,
+            "plan": f"taste-1 + Open Models ({active_models['cmdcode']})",
+            "desc": f"Command Code 學習偏好的編碼 Agent (當前綁定 {active_models['cmdcode']})",
+            "tier": "Tier-2",
+            "icon": "fa-terminal",
+            "color": "#8B5CF6",
         },
         {
             "id": "khavis",
@@ -2292,7 +2327,26 @@ _WORKBENCH_PAGE_HEAD = """<!DOCTYPE html>
                 </div>
               </div>
 
-              <!-- Node 6: K.A.V.I.S. 7-Role Team -->
+              <!-- Node 6: Command Code (taste-1) -->
+              <div id="node-card-cmdcode" onclick="toggleAgentNode('cmdcode')" class="agent-node-card cursor-pointer rounded-xl p-3 bg-[#0E1525] border border-white/10 flex flex-col justify-between space-y-2.5 select-none">
+                <input type="checkbox" name="agent_target" value="cmdcode" class="hidden" onchange="syncTopologyBeams()">
+                <div class="flex items-center justify-between">
+                  <div class="w-8 h-8 rounded-lg bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
+                    <i class="fas fa-code-branch"></i>
+                  </div>
+                  <span id="badge-node-cmdcode" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-slate-400">待命</span>
+                </div>
+                <div>
+                  <div class="font-bold text-white text-xs">Command Code</div>
+                  <div class="text-[10px] text-violet-400 font-mono truncate mt-0.5">taste-1</div>
+                </div>
+                <div class="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-white/5">
+                  <span>Tier-2 CLI</span>
+                  <i class="fas fa-check-circle text-slate-600 check-indicator"></i>
+                </div>
+              </div>
+
+              <!-- Node 7: K.A.V.I.S. 7-Role Team -->
               <div id="node-card-khavis" onclick="toggleAgentNode('khavis')" class="agent-node-card selected cursor-pointer rounded-xl p-3 bg-[#0E1525] border border-white/10 flex flex-col justify-between space-y-2.5 select-none">
                 <input type="checkbox" name="agent_target" value="khavis" checked class="hidden" onchange="syncTopologyBeams()">
                 <div class="flex items-center justify-between">

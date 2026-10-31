@@ -40,15 +40,15 @@ _SLICES: Final[dict[str, tuple[int, int]]] = {
     # 工作區 + Git worktree/diff 主控台
     "workspace": (250, 327),
     # 拓撲畫布 + Agent 節點 + 協同模式 + 任務範本 (不含輸入框, 見 composer)
-    "topology": (329, 702),
+    "topology": (329, 721),
     # 快速範本 + textarea + 能力路由 + 派工按鈕
-    "composer": (703, 756),
+    "composer": (722, 775),
     # 執行面板：狀態列、pipeline stepper、延遲圖、成果容器
-    "result": (764, 850),
+    "result": (783, 869),
     # VIEW 2-5：交付文件 / 額度熔斷 / Agent 集群 / 部署精靈
-    "views": (854, 984),
+    "views": (873, 1003),
     # 產物預覽抽屜
-    "drawers": (989, 1012),
+    "drawers": (1008, 1031),
 }
 
 
@@ -780,7 +780,7 @@ _SIDEBAR: Final[str] = """
     <button type="button" onclick="cOpenPage('agents')" id="nav-agents" data-nav="agents" class="tab-btn v-nav">
       <span class="v-nav-ic v-ic-agents"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M12 7v4m0 0-5 5m5-5 5 5" stroke-linecap="round"/></svg></span>
       <span class="text-xs font-semibold min-w-0">Agent 狀態</span>
-      <span class="text-[9px] font-mono px-1 py-0.5 rounded shrink-0" style="background:var(--m-sage-soft);color:var(--m-sage)"><span id="c-fleet-count">7</span>/7</span>
+      <span class="text-[9px] font-mono px-1 py-0.5 rounded shrink-0" style="background:var(--m-sage-soft);color:var(--m-sage)"><span id="c-fleet-count">8</span>/8</span>
       <span class="v-nav-dot" style="background:var(--v-emerald)"></span>
     </button>
 
@@ -2835,7 +2835,7 @@ function cRenderAgentStatusPanel() {
   });
   ['c-fleet-count', 'c-fleet-count-page'].forEach(cid => {
     const countEl = document.getElementById(cid);
-    if (countEl) countEl.textContent = String(seen.length || 7);
+    if (countEl) countEl.textContent = String(seen.length || 8);
   });
 
   host.innerHTML = seen.map(b => {
@@ -4102,7 +4102,7 @@ _PAGE_AGENTS_TOP: Final[str] = """
         <div class="glass-panel p-4 rounded-2xl border border-white/10 space-y-3">
           <div class="flex items-center gap-2 flex-wrap">
             <h3 class="font-bold text-sm text-white">即時 Agent 狀態</h3>
-            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded" style="background:var(--m-sage-soft);color:var(--m-sage)"><span id="c-fleet-count-page">7</span>/7 在線</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded" style="background:var(--m-sage-soft);color:var(--m-sage)"><span id="c-fleet-count-page">8</span>/8 在線</span>
             <span class="text-[11px] text-slate-400">點選卡片可啟用／停用該 Agent 參與派工</span>
           </div>
           <div id="c-agent-status-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5"></div>

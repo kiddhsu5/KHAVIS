@@ -1374,6 +1374,7 @@ class Handler(BaseHTTPRequestHandler):
                 AntigravityBackend,
                 ClaudeBackend,
                 CodexBackend,
+                CommandCodeBackend,
                 CustomAgentBackend,
                 KavisTencentBackend,
                 KhavisBackend,
@@ -1451,6 +1452,10 @@ class Handler(BaseHTTPRequestHandler):
                 "opencode": OpencodeBackend(
                     model=str(agent_models.get("opencode") or "").strip(),
                     cwd=str(agent_cwds.get("opencode", shared_dir)),
+                ),
+                "cmdcode": CommandCodeBackend(
+                    model=str(agent_models.get("cmdcode") or "").strip(),
+                    cwd=str(agent_cwds.get("cmdcode", shared_dir)),
                 ),
                 "khavis": KhavisBackend(),
                 "kavis-tencent": KavisTencentBackend(
