@@ -58,6 +58,7 @@ if ($PythonExe) {
             }
         } catch { }
     }
+    }
 }
 if (-not $py) { Fail "需要 Python ≥ 3.11（https://www.python.org/downloads/windows/，安裝時勾選 Add to PATH）" }
 $pyVer = & $py -c "import sys; print('%d.%d' % sys.version_info[:2])"
