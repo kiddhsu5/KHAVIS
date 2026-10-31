@@ -3096,6 +3096,20 @@ const C_PROVIDER_PRESETS = {
     base_url: 'https://generativelanguage.googleapis.com/v1beta/openai',
     agents: 'Antigravity / Gemini 節點'
   },
+  cmdcode: {
+    label: 'Command Code Provider API',
+    env: 'COMMAND_CODE_API_KEY',
+    base_url_env: 'COMMAND_CODE_BASE_URL',
+    base_url: 'https://api.commandcode.ai/v1',
+    agents: 'Command Code CLI / 所有 Agent (101+ 模型跨 Anthropic/OpenAI/DeepSeek/GLM/Kimi/MiniMax/Qwen)'
+  },
+  nvidia: {
+    label: 'NVIDIA NIM',
+    env: 'NVIDIA_API_KEY',
+    base_url_env: 'NVIDIA_BASE_URL',
+    base_url: 'https://integrate.api.nvidia.com/v1',
+    agents: 'Command Code / OpenCode / 自訂 Agent (開源模型推理)'
+  },
   ollama: {
     label: 'Ollama 本地 / 內網推理伺服器',
     env: 'OLLAMA_API_KEY',

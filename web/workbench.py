@@ -528,6 +528,14 @@ BYOK_PROVIDER_SPECS = [
         "builtin": True,
     },
     {
+        "env": "COMMAND_CODE_API_KEY",
+        "label": "Command Code Provider API Key",
+        "agents": "Command Code CLI / 所有 Agent (101+ models)",
+        "base_url_env": "COMMAND_CODE_BASE_URL",
+        "default_base_url": "https://api.commandcode.ai/v1",
+        "builtin": True,
+    },
+    {
         "env": "NVIDIA_API_KEY",
         "label": "NVIDIA NIM API Key",
         "agents": "Command Code / OpenCode / 自訂 Agent",
@@ -1099,7 +1107,7 @@ def get_agent_fleet_status() -> list[dict[str, Any]]:
             "adjustable": True,
             "custom": False,
             "plan": f"taste-1 + Open Models ({active_models['cmdcode']})",
-            "desc": f"Command Code 學習偏好的編碼 Agent (當前綁定 {active_models['cmdcode']})",
+            "desc": f"Command Code 平台：taste-1 偏好學習 + 101 模型 Provider API (當前綁定 {active_models['cmdcode']})",
             "tier": "Tier-2",
             "icon": "fa-terminal",
             "color": "#8B5CF6",
