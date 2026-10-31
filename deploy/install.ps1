@@ -21,7 +21,8 @@ param(
     [string]$Repo = "https://github.com/kiddhsu5/KHAVIS.git",
     [string]$Branch = "main",
     [switch]$SkipClone,
-    [switch]$NoService
+    [switch]$NoService,
+    [string]$PythonExe = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,15 +35,26 @@ Log "檢查環境…"
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Fail "需要 Git（https://git-scm.com/download/win）" }
 
 $py = $null
-foreach ($cand in @("py", "python3", "python")) {
-    $cmd = Get-Command $cand -ErrorAction SilentlyContinue
+$pyArgs = @()
+if ($PythonExe) {
+    $py = $PythonExe
+} else {
+    # 優先使用 wheels 完整的版本（3.13/3.12/3.11）；3.14+ 部分套件可能需本機編譯
+    foreach ($cand in @("py -3.13", "py -3.12", "py -3.11", "python3.13", "python3.12", "python3.11", "py", "python3", "python")) {
+    $exe = $cand
+    $args = @()
+    if ($cand -match " ") {
+        $parts2 = $cand.Split(" ")
+        $exe = $parts2[0]
+        $args = $parts2[1..($parts2.Count-1)]
+    }
+    $cmd = Get-Command $exe -ErrorAction SilentlyContinue
     if ($cmd) {
         try {
-            if ($cand -eq "py") { $ver = & $cand -3 -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null }
-            else { $ver = & $cand -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null }
+            $ver = & $exe @args -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
             if ($ver) {
                 $parts = $ver.Split(".")
-                if ([int]$parts[0] -eq 3 -and [int]$parts[1] -ge 11) { $py = $cand; break }
+                if ([int]$parts[0] -eq 3 -and [int]$parts[1] -ge 11) { $py = $exe; $pyArgs = $args; break }
             }
         } catch { }
     }
@@ -74,11 +86,18 @@ if ($SkipClone) {
 
 # ── 3. venv + 依賴 ───────────────────────────────────────────────
 Log "建立 venv 並安裝依賴…"
-& $py -m venv (Join-Path $InstallHome ".venv")
+& $py @pyArgs -m venv (Join-Path $InstallHome ".venv")
 $pip = Join-Path $InstallHome ".venv\Scripts\pip.exe"
 & $pip install --upgrade pip --quiet
 & $pip install -r (Join-Path $InstallHome "requirements.txt") --quiet
-if ($LASTEXITCODE -ne 0) { Fail "依賴安裝失敗" }
+if ($LASTEXITCODE -ne 0) {
+    $hint = ""
+    try {
+        $minor = [int]($pyVer.Split(".")[1])
+        if ($minor -ge 14) { $hint = "（Python $pyVer 部分套件尚無預編譯 wheel；建議改用 Python 3.12，或安裝 Microsoft C++ Build Tools）" }
+    } catch { }
+    Fail "依賴安裝失敗 $hint"
+}
 Log "依賴安裝完成"
 
 # ── 4. .env 初始化（不覆蓋）─────────────────────────────────────
