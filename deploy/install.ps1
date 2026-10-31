@@ -42,16 +42,16 @@ if ($PythonExe) {
     # 優先使用 wheels 完整的版本（3.13/3.12/3.11）；3.14+ 部分套件可能需本機編譯
     foreach ($cand in @("py -3.13", "py -3.12", "py -3.11", "python3.13", "python3.12", "python3.11", "py", "python3", "python")) {
     $exe = $cand
-    $args = @()
+    $candArgs = @()
     if ($cand -match " ") {
         $parts2 = $cand.Split(" ")
         $exe = $parts2[0]
-        $args = $parts2[1..($parts2.Count-1)]
+        $candArgs = $parts2[1..($parts2.Count-1)]
     }
     $cmd = Get-Command $exe -ErrorAction SilentlyContinue
     if ($cmd) {
         try {
-            $ver = & $exe @args -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
+            $ver = & $exe @candArgs -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
             if ($ver) {
                 $parts = $ver.Split(".")
                 if ([int]$parts[0] -eq 3 -and [int]$parts[1] -ge 11) { $py = $exe; $pyArgs = $args; break }
