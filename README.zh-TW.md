@@ -109,6 +109,10 @@ python3 examples/zero_quota_demo.py --json
 
 請把它當作離線 smoke test，而不是服務可用性或請求必定完成的承諾。
 
+### 可重現接力證據（E2）
+
+`examples/relay_quickstart/` 在乾淨環境證明核心工作流：接力 → 產出檔案 → git diff → 人工採用。離線路徑不需 key 或網路；BYOK 路徑執行真正的 LangGraph 團隊，且一律停在人工檢視閘門。
+
 ### 真實 provider 請求
 
 真實請求需要 provider endpoint 與憑證（真正的本地 Ollama endpoint 除外）：
@@ -267,6 +271,7 @@ Docker、nginx、systemd 與 Tencent Cloud 說明獨立放置，讓本地 CLI se
 
 - [`INSTALLATION.md`](INSTALLATION.md)：安裝、驗證、執行與疑難排解。
 - [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md)：YAML 與環境設定。
+- [`docs/EVIDENCE.md`](docs/EVIDENCE.md)：功能宣稱與證據等級（E0–E3）。
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)：router、registry、orchestration、memory 與 audit 概念。
 - [`docs/HEALTH.md`](docs/HEALTH.md)：健康檢查、circuit 狀態與額度觀測。
 - [`docs/PLUGIN_API.md`](docs/PLUGIN_API.md)：provider plugin 介面。

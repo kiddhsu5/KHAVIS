@@ -99,6 +99,10 @@ python3 examples/zero_quota_demo.py --json
 
 A reproducible failure-flow drill using in-memory cloud, webhook, and Ollama-style stand-ins. It verifies local routing, quota exhaustion handling, alert capture, and local fallback control flow. It does **not** contact providers, test real Ollama, validate API keys, or prove any model is available. The JSON summary includes `external_network: false`, `api_keys_required: false`, and `ollama_service_required: false`.
 
+### Reproducible relay proof (E2)
+
+`examples/relay_quickstart/` proves the core workflow — relay → file output → git diff → human adopt — on a clean environment. The offline path needs no keys or network; the BYOK path runs the real LangGraph team and always stops at a human review gate.
+
 ### Real provider requests
 
 ```bash
@@ -240,6 +244,7 @@ Read the deployment docs and confirm your security settings before exposing anyt
 
 - [`INSTALLATION.md`](INSTALLATION.md): install, verify, run, troubleshoot.
 - [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md): YAML and environment settings.
+- [`docs/EVIDENCE.md`](docs/EVIDENCE.md): feature claims and their evidence levels (E0–E3).
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): router, registry, orchestration, memory, audit.
 - [`docs/HEALTH.md`](docs/HEALTH.md): health checks, circuit state, quota telemetry.
 - [`docs/PLUGIN_API.md`](docs/PLUGIN_API.md): provider plugin interface.
