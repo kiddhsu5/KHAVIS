@@ -57,6 +57,8 @@ def dispatch_url() -> str:
 def probe_tencent_kavis(endpoint: str | None = None, timeout_s: float = _HEALTH_TIMEOUT_S) -> dict[str, Any]:
     """HTTP probe of the Tencent K.A.V.I.S. node. Never raises; never leaks keys."""
     url = (endpoint or tencent_endpoint()).rstrip("/")
+    if not url:
+        return {"ok": False, "endpoint": "", "detail": "endpoint_not_configured"}
     kwargs: dict[str, Any] = {"timeout": timeout_s}
     if url.lower().startswith("https"):
         kwargs["context"] = _probe_ssl_context()
