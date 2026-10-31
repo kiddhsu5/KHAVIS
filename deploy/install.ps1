@@ -54,7 +54,7 @@ if ($PythonExe) {
             $ver = & $exe @candArgs -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
             if ($ver) {
                 $parts = $ver.Split(".")
-                if ([int]$parts[0] -eq 3 -and [int]$parts[1] -ge 11) { $py = $exe; $pyArgs = $args; break }
+                if ([int]$parts[0] -eq 3 -and [int]$parts[1] -ge 11) { $py = $exe; $pyArgs = $candArgs; break }
             }
         } catch { }
     }
