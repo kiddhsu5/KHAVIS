@@ -36,6 +36,82 @@ _ACTION_MANDATE = (
     "3. 最終回覆必須是乾淨、人類易讀的繁體中文內容，嚴禁直接把原始終端機指令或 `<tool_call>` JSON 當成最終回答！"
 )
 
+_DELIVERABLE_DIR_NAMES = {"deliverables", "output", "outputs", "docs"}
+_DELIVERABLE_SKIP_DIRS = {
+    "skills",
+    ".agents",
+    ".agent",
+    ".claude",
+    ".codex",
+    "references",
+    "install",
+    "evals",
+    "scripts",
+    "tests",
+    "src",
+    "vendor",
+    "node_modules",
+    ".git",
+    ".worktrees",
+    ".venv",
+    ".venv-pdf",
+    "venv",
+    "docenv",
+    "tmp",
+}
+_REPO_DOC_FILENAMES = {
+    "readme.md",
+    "readme.zh-tw.md",
+    "readme.en.md",
+    "changelog.md",
+    "contributing.md",
+    "skill.md",
+    "agents.md",
+    "gemini.md",
+    "claude.md",
+    "license",
+    "license.md",
+}
+_DELIVERABLE_EXTS = {
+    ".pdf",
+    ".docx",
+    ".pptx",
+    ".xlsx",
+    ".md",
+    ".html",
+    ".txt",
+    ".csv",
+    ".zip",
+    ".svg",
+    ".png",
+}
+_FORMAL_DELIVERY_EXTS = {".pdf", ".docx", ".pptx", ".xlsx", ".zip"}
+
+
+def _is_deliverable_output_path(rel_path: str) -> bool:
+    """Return True only for user-facing deliverable documents."""
+    if not rel_path:
+        return False
+    norm = str(rel_path).replace("\\", "/").strip().strip("/")
+    if not norm:
+        return False
+    parts = [part for part in norm.split("/") if part and part != "."]
+    if not parts:
+        return False
+    if any(part.lower() in _DELIVERABLE_SKIP_DIRS for part in parts[:-1]):
+        return False
+    filename = parts[-1].lower()
+    if filename in _REPO_DOC_FILENAMES:
+        return False
+    suffix = Path(filename).suffix.lower()
+    if suffix not in _DELIVERABLE_EXTS:
+        return False
+    if len(parts) > 1:
+        if parts[0].lower() not in _DELIVERABLE_DIR_NAMES:
+            return False
+        return True
+    return suffix in _FORMAL_DELIVERY_EXTS
+
 
 def _clean_execution_log_out_of_main(text: str) -> tuple[str, str]:
     """Separate any `⚡ **【自主工具執行紀錄...` block out of main result so main bubble stays clean."""
@@ -226,9 +302,39 @@ async def run_collaborative_workflow(
     contextual_prompt = build_contextual_prompt(prompt, previous_context)
     collaboration_steps: list[dict[str, Any]] = []
     results: list[BackendResult] = []
+    project_root = Path(__file__).resolve().parents[1]
+
+    def _snap_dir(d: Path) -> dict[str, dict[str, Any]]:
+        return {str(f.get("rel_path")): f for f in list_project_files(d)}
+
+    def _snap_sig(meta: dict[str, Any]) -> tuple[Any, Any]:
+        return (meta.get("size_bytes"), meta.get("mtime_ns") or meta.get("mtime"))
+
+    def _snap_root_outputs() -> dict[str, dict[str, Any]]:
+        out: dict[str, dict[str, Any]] = {}
+        if shared_dir.resolve() == project_root.resolve():
+            return out
+        for folder in ("deliverables", "output", "outputs"):
+            sub = project_root / folder
+            if not sub.is_dir():
+                continue
+            for f in list_project_files(sub):
+                rel = f"{folder}/{f.get('rel_path')}"
+                out[rel] = {**f, "rel_path": rel}
+        return out
+
     before_snap: dict[str, tuple[Any, Any]] = {
-        str(f.get("rel_path")): (f.get("size_bytes"), f.get("mtime"))
-        for f in list_project_files(shared_dir)
+        rel_p: _snap_sig(meta) for rel_p, meta in _snap_dir(shared_dir).items()
+    }
+    before_cwd_snaps: dict[str, dict[str, tuple[Any, Any]]] = {}
+    for cwd_path in agent_cwds.values():
+        key = str(cwd_path.resolve())
+        if key != str(shared_dir.resolve()) and key not in before_cwd_snaps:
+            before_cwd_snaps[key] = {
+                rel_p: _snap_sig(meta) for rel_p, meta in _snap_dir(cwd_path).items()
+            }
+    before_root_out: dict[str, tuple[Any, Any]] = {
+        rel_p: _snap_sig(meta) for rel_p, meta in _snap_root_outputs().items()
     }
 
     if mode == "relay" and len(agents) >= 2:
@@ -410,9 +516,52 @@ async def run_collaborative_workflow(
         consensus_text, results, critique_summary
     )
 
-    # Collect per-agent workspace diffs
+    # Collect per-agent workspace diffs (strictly scoped to files created/modified in THIS turn)
+    after_map = _snap_dir(shared_dir)
+    after_cwd_maps: dict[str, dict[str, dict[str, Any]]] = {}
+    for cwd_path in agent_cwds.values():
+        key = str(cwd_path.resolve())
+        if key != str(shared_dir.resolve()) and key not in after_cwd_maps:
+            after_cwd_maps[key] = _snap_dir(cwd_path)
+
+    def _turn_diff_entries(
+        before_sigs: dict[str, tuple[Any, Any]],
+        after_files: dict[str, dict[str, Any]],
+        fallback_base: Path,
+    ) -> list[dict[str, Any]]:
+        entries: list[dict[str, Any]] = []
+        for rel_p, fmeta in after_files.items():
+            if not rel_p:
+                continue
+            prev = before_sigs.get(rel_p)
+            if prev is None or prev != _snap_sig(fmeta):
+                entries.append(
+                    {
+                        "path": rel_p,
+                        "full_path": str(fmeta.get("path") or (fallback_base / rel_p)),
+                        "status": "A" if prev is None else "M",
+                        "size": str(fmeta.get("size") or ""),
+                    }
+                )
+        return entries
+
+    shared_changed_list = _turn_diff_entries(before_snap, after_map, shared_dir)
+    root_out_changed = _turn_diff_entries(before_root_out, _snap_root_outputs(), project_root)
+    seen_rel: set[str] = {str(e["path"]) for e in shared_changed_list}
+    for entry in root_out_changed:
+        if entry["path"] not in seen_rel:
+            seen_rel.add(str(entry["path"]))
+            shared_changed_list.append(entry)
+
     results_dump: list[dict[str, Any]] = []
-    all_changed_files: list[Any] = []
+    all_changed_files: list[Any] = list(shared_changed_list)
+    turn_output_map: dict[str, dict[str, Any]] = {
+        str(e["path"]): e
+        for e in shared_changed_list
+        if _is_deliverable_output_path(str(e.get("path") or ""))
+    }
+    seen_rel_paths: set[str] = {str(e["path"]) for e in shared_changed_list}
+
     for r in results:
         d = r.model_dump()
         if not d.get("model") and r.backend in backends:
@@ -420,49 +569,54 @@ async def run_collaborative_workflow(
         target_cwd = agent_cwds.get(str(r.backend), shared_dir)
         d["cwd"] = str(target_cwd)
         diff_info = collect_directory_diff(target_cwd)
-        cfiles = diff_info.get("changed_files", [])
+        cwd_key = str(target_cwd.resolve())
+        if cwd_key == str(shared_dir.resolve()):
+            cfiles = list(shared_changed_list)
+        else:
+            cfiles = _turn_diff_entries(
+                before_cwd_snaps.get(cwd_key, {}),
+                after_cwd_maps.get(cwd_key, {}),
+                target_cwd,
+            )
         d["changed_files"] = cfiles
         d["diff"] = diff_info.get("diff", "")
-        all_changed_files.extend(cfiles)
+        for cf in cfiles:
+            rel_p = str(cf.get("path") or "")
+            if not rel_p:
+                continue
+            if rel_p not in seen_rel_paths:
+                seen_rel_paths.add(rel_p)
+                all_changed_files.append(cf)
+            if rel_p not in turn_output_map and _is_deliverable_output_path(rel_p):
+                turn_output_map[rel_p] = cf
         results_dump.append(d)
 
     shared_diff = collect_directory_diff(shared_dir)
-    after_map: dict[str, dict[str, Any]] = {
-        str(f.get("rel_path")): f for f in list_project_files(shared_dir)
+
+    _doc_prio = {
+        ".pdf": 1,
+        ".docx": 2,
+        ".pptx": 3,
+        ".xlsx": 4,
+        ".md": 5,
+        ".html": 6,
+        ".txt": 7,
+        ".csv": 8,
+        ".zip": 9,
+        ".svg": 10,
+        ".png": 11,
     }
-    shared_changed_list: list[dict[str, Any]] = []
-    seen_rel: set[str] = set()
-
-    for cf in shared_diff.get("changed_files", []):
-        rel_p = str(cf.get("path") or "").strip()
-        if not rel_p or rel_p in seen_rel:
-            continue
-        seen_rel.add(rel_p)
-        fmeta = after_map.get(rel_p, {})
-        entry = {
-            "path": rel_p,
-            "full_path": str(fmeta.get("path") or (shared_dir / rel_p)),
-            "status": str(cf.get("status") or "M"),
-            "size": str(fmeta.get("size") or ""),
-        }
-        shared_changed_list.append(entry)
-        if entry not in all_changed_files:
-            all_changed_files.append(entry)
-
-    for rel_p, fmeta in after_map.items():
-        if rel_p in seen_rel:
-            continue
-        prev = before_snap.get(rel_p)
-        if prev is None or prev != (fmeta.get("size_bytes"), fmeta.get("mtime")):
-            seen_rel.add(rel_p)
-            entry = {
-                "path": rel_p,
-                "full_path": str(fmeta.get("path") or (shared_dir / rel_p)),
-                "status": "A" if prev is None else "M",
-                "size": str(fmeta.get("size") or ""),
-            }
-            shared_changed_list.append(entry)
-            all_changed_files.append(entry)
+    turn_output_files = sorted(
+        (
+            e
+            for e in turn_output_map.values()
+            if _is_deliverable_output_path(str(e.get("path") or ""))
+        ),
+        key=lambda e: (
+            _doc_prio.get(Path(str(e.get("path") or "")).suffix.lower(), 50),
+            str(e.get("path") or ""),
+        ),
+    )
 
     next_actions = generate_next_step_actions(prompt, clean_consensus, all_changed_files)
 
@@ -477,5 +631,6 @@ async def run_collaborative_workflow(
         "next_actions": next_actions,
         "results": results_dump,
         "shared_changed_files": shared_changed_list,
+        "turn_output_files": turn_output_files,
         "shared_diff": shared_diff.get("diff", ""),
     }

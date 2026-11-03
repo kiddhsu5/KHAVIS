@@ -227,7 +227,7 @@ def test_status_server_workbench_endpoints(monkeypatch) -> None:
     assert "github.com/kiddhsu5/KHAVIS" in root_html
     assert "/workbench" in root_html
 
-    # 1. GET /workbench  (現行介面 = 選項 C 任務卡片流)
+    # 1. GET /workbench  (額度交接台 — 現行主入口)
     h_wb = DummyStatusHandler("/workbench")
     h_wb.do_GET()
     assert len(h_wb.responses) == 1
@@ -236,6 +236,15 @@ def test_status_server_workbench_endpoints(monkeypatch) -> None:
     assert "text/html" in ctype
     wb_body = body.decode("utf-8")
     assert "K.H.A.V.I.S." in wb_body
+
+    # 1b. GET /workbench-c  (任務工作台 — 選項 C 任務卡片流)
+    h_wbc = DummyStatusHandler("/workbench-c")
+    h_wbc.do_GET()
+    assert len(h_wbc.responses) == 1
+    status, body, ctype = h_wbc.responses[0]
+    assert status == 200
+    assert "text/html" in ctype
+    wb_body = body.decode("utf-8")
     assert 'id="c-task-stream"' in wb_body
     assert "manus-console" in wb_body
     assert "manusCreateTask" in wb_body
@@ -941,3 +950,134 @@ def test_agent_skills_and_result_review_split(tmp_path) -> None:
             js_file.write_text(script_body, encoding="utf-8")
             chk = subprocess.run(["node", "--check", str(js_file)], capture_output=True, text=True)
             assert chk.returncode == 0, f"JS syntax error in script {idx}: {chk.stderr}"
+
+
+def test_turn_output_files_strictly_scoped_to_each_turn(tmp_path, monkeypatch) -> None:
+    """每一輪對話的『本輪產出文檔』只能顯示該輪實際新增／變更的文件，絕不回填歷史檔案。"""
+    import asyncio
+
+    from bot.dispatch import DispatchRouter
+    from bot.models import BackendResult
+    from core.collab_orchestrator import run_collaborative_workflow
+    from core.workspace_manager import ensure_project_initialized
+    from scripts.status_server import _collect_output_files
+
+    ws_root = tmp_path / "workspace"
+    monkeypatch.setenv("KHAVIS_WORKSPACE_ROOT", str(ws_root))
+    proj_dir = ensure_project_initialized("shared-app")
+
+    old_deliverable = proj_dir / "deliverables" / "old_ipas_pack.docx"
+    old_deliverable.parent.mkdir(parents=True, exist_ok=True)
+    old_deliverable.write_bytes(b"OLD_DOCX_CONTENT")
+    old_pdf = proj_dir / "output" / "old_summary.pdf"
+    old_pdf.parent.mkdir(parents=True, exist_ok=True)
+    old_pdf.write_bytes(b"OLD_PDF_CONTENT")
+
+    class _NoWriteBackend:
+        name = "claude"
+        model = "test-model"
+
+        async def run(self, _env):
+            return BackendResult(
+                backend="claude",
+                ok=True,
+                text="已參考 deliverables/old_ipas_pack.docx，純文字回答，未修改任何檔案",
+                latency_ms=12,
+            )
+
+    orch_turn1 = asyncio.run(
+        run_collaborative_workflow(
+            router=DispatchRouter({"claude": _NoWriteBackend()}),  # type: ignore[arg-type]
+            backends={"claude": _NoWriteBackend()},
+            agents=["claude"],
+            prompt="請問今天進度如何？",
+            capability=None,
+            shared_dir=proj_dir,
+            agent_cwds={"claude": proj_dir},
+            collab_mode="parallel",
+        )
+    )
+    assert orch_turn1["turn_output_files"] == []
+    assert orch_turn1["shared_changed_files"] == []
+    assert _collect_output_files(orch_turn1, "shared-app") == []
+
+    class _WriteOneDocBackend:
+        name = "claude"
+        model = "test-model"
+
+        async def run(self, _env):
+            new_doc = proj_dir / "deliverables" / "turn2_brand_plan.md"
+            new_doc.write_text("# 本輪新建品牌計畫\n", encoding="utf-8")
+            return BackendResult(backend="claude", ok=True, text="已產出品牌計畫", latency_ms=25)
+
+    orch_turn2 = asyncio.run(
+        run_collaborative_workflow(
+            router=DispatchRouter({"claude": _WriteOneDocBackend()}),  # type: ignore[arg-type]
+            backends={"claude": _WriteOneDocBackend()},
+            agents=["claude"],
+            prompt="請產出品牌計畫",
+            capability=None,
+            shared_dir=proj_dir,
+            agent_cwds={"claude": proj_dir},
+            collab_mode="parallel",
+        )
+    )
+    turn2_files = _collect_output_files(orch_turn2, "shared-app")
+    assert [f["path"] for f in turn2_files] == ["deliverables/turn2_brand_plan.md"]
+
+    class _ModifyOldDocBackend:
+        name = "claude"
+        model = "test-model"
+
+        async def run(self, _env):
+            old_deliverable.write_bytes(b"UPDATED_DOCX_CONTENT")
+            return BackendResult(backend="claude", ok=True, text="已更新舊文檔", latency_ms=30)
+
+    orch_turn3 = asyncio.run(
+        run_collaborative_workflow(
+            router=DispatchRouter({"claude": _ModifyOldDocBackend()}),  # type: ignore[arg-type]
+            backends={"claude": _ModifyOldDocBackend()},
+            agents=["claude"],
+            prompt="請更新舊文檔",
+            capability=None,
+            shared_dir=proj_dir,
+            agent_cwds={"claude": proj_dir},
+            collab_mode="parallel",
+        )
+    )
+    turn3_files = _collect_output_files(orch_turn3, "shared-app")
+    assert [f["path"] for f in turn3_files] == ["deliverables/old_ipas_pack.docx"]
+    assert turn3_files[0]["status"] == "M"
+
+    from bot import history as bot_history
+
+    monkeypatch.setattr(
+        bot_history,
+        "tail",
+        lambda _n=200: [
+            {
+                "ts": 1001.0,
+                "kind": "workbench",
+                "prompt": "純文字問答",
+                "project": "shared-app",
+                "ok": True,
+                "output_files": [],
+            },
+            {
+                "ts": 1002.0,
+                "kind": "workbench",
+                "prompt": "產出品牌計畫",
+                "project": "shared-app",
+                "ok": True,
+                "output_files": turn2_files,
+            },
+        ],
+    )
+    h_hist = DummyStatusHandler("/api/workbench/history")
+    h_hist.do_GET()
+    assert h_hist.responses[0][0] == 200
+    hist_payload = json.loads(h_hist.responses[0][1].decode("utf-8"))
+    assert hist_payload["history"][0]["output_files"] == []
+    assert [f["path"] for f in hist_payload["history"][1]["output_files"]] == [
+        "deliverables/turn2_brand_plan.md"
+    ]

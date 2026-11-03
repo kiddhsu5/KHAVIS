@@ -107,7 +107,14 @@ def normalize_choices(data: dict[str, Any]) -> dict[str, Any]:
             continue
         message = choice.get("message")
         if isinstance(message, dict):
-            message["content"] = text_of(message.get("content"))
+            content_str = text_of(message.get("content"))
+            if (
+                not content_str.strip()
+                and not _message_has_tool_calls(message)
+                and message.get("reasoning_content")
+            ):
+                content_str = text_of(message.get("reasoning_content"))
+            message["content"] = content_str
     return data
 
 

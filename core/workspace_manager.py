@@ -436,6 +436,7 @@ def list_project_files(proj_dir: Path) -> list[dict[str, Any]]:
                     if st.st_size >= 100
                     else f"{st.st_size} B",
                     "mtime": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(st.st_mtime)),
+                    "mtime_ns": st.st_mtime_ns,
                 }
             )
         except OSError:

@@ -1819,25 +1819,46 @@ const cFileCache = Object.create(null);   // full_path -> 文件內容（避免�
 const cFileOpen = Object.create(null);    // `${taskId}|${path}` -> 使用者是否展開
 const C_FILE_PREVIEW_CHARS = 20000;
 
-function cGetTurnOutputFiles(t) {
-  const direct = Array.isArray(t && t.outputFiles) ? t.outputFiles.filter(f => f && f.path && !String(f.path).endsWith('/')) : [];
-  if (direct.length) return direct;
-  if (typeof cAllArtifactsCache !== 'undefined' && Array.isArray(cAllArtifactsCache) && cAllArtifactsCache.length) {
-    const wsOutputs = cAllArtifactsCache.filter(item => {
-      const rp = String(item.rel_path || item.path || '');
-      return new RegExp('(?:^|/)(?:deliverables|output|outputs)/', 'i').test(rp);
-    });
-    if (wsOutputs.length) {
-      return wsOutputs.map(item => ({
-        path: item.rel_path || item.name || item.path,
-        full_path: item.path || item.rel_path,
-        status: 'A',
-        size: item.size || '',
-        badge: item.badge || ''
-      }));
-    }
+function cIsDeliverablePath(pathStr) {
+  if (!pathStr) return false;
+  let norm = String(pathStr).split(String.fromCharCode(92)).join('/').trim();
+  while (norm.startsWith('/')) norm = norm.slice(1);
+  while (norm.endsWith('/')) norm = norm.slice(0, -1);
+  if (!norm) return false;
+  const parts = norm.split('/').filter(p => p && p !== '.');
+  if (!parts.length) return false;
+  const skipDirs = new Set([
+    'skills', '.agents', '.agent', '.claude', '.codex', 'references',
+    'install', 'evals', 'scripts', 'tests', 'src', 'vendor', 'node_modules',
+    'tmp', '.git', '.worktrees', '.venv', 'venv'
+  ]);
+  if (parts.slice(0, -1).some(p => skipDirs.has(p.toLowerCase()))) return false;
+  const filename = parts[parts.length - 1].toLowerCase();
+  const repoDocFiles = new Set([
+    'readme.md', 'readme.zh-tw.md', 'readme.en.md', 'changelog.md',
+    'contributing.md', 'skill.md', 'agents.md', 'gemini.md', 'claude.md',
+    'license', 'license.md'
+  ]);
+  if (repoDocFiles.has(filename)) return false;
+  const dotIdx = filename.lastIndexOf('.');
+  const ext = dotIdx >= 0 ? filename.slice(dotIdx).toLowerCase() : '';
+  const deliverableExts = new Set([
+    '.pdf', '.docx', '.pptx', '.xlsx', '.md', '.html', '.txt', '.csv', '.zip', '.svg', '.png'
+  ]);
+  if (!deliverableExts.has(ext)) return false;
+  const deliverableDirs = new Set(['deliverables', 'output', 'outputs', 'docs']);
+  if (parts.length > 1) {
+    return deliverableDirs.has(parts[0].toLowerCase());
   }
-  return [];
+  const formalExts = new Set(['.pdf', '.docx', '.pptx', '.xlsx', '.zip']);
+  return formalExts.has(ext);
+}
+
+function cGetTurnOutputFiles(t) {
+  const direct = Array.isArray(t && t.outputFiles)
+    ? t.outputFiles.filter(f => f && f.path && !String(f.path).endsWith("/") && cIsDeliverablePath(f.path))
+    : [];
+  return direct;
 }
 
 function cFileExtBadge(pathStr, fallbackBadge) {

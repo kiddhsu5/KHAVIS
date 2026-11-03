@@ -44,11 +44,11 @@ pools:
   - name: "GLM-5.3"
     provider_id: "glm"
     endpoint: "https://open.bigmodel.cn/api/paas/v4"
-    model: "glm-5.3-flashx"
+    model: "glm-5.3"
     models:
-      - "glm-5.3-flashx"
-      - "glm-5.3-flash"
       - "glm-5.3"
+      - "glm-5.3-flash"
+      - "glm-5.3-flashx"
       - "codegeex-4"
     env_key: "ZHIPUAI_API_KEY"
 

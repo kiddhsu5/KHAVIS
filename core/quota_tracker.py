@@ -51,8 +51,12 @@ class RateLimitSnapshot:
     reset_tokens_s: float | None = None
     balance_usd: float | None = None
     is_free_tier: bool | None = None
+    remaining_ratio: float | None = None
+    plan: str | None = None
+    windows: list[dict[str, Any]] = field(default_factory=list)
+    note: str = ""
     updated_at: float = field(default_factory=time.time)
-    source: str = "header"  # "header", "api", "manual"
+    source: str = "header"  # "header", "api", "manual", "coding-plan"
 
     def is_exhausted(
         self,
@@ -65,6 +69,10 @@ class RateLimitSnapshot:
 
         # Balance check (for paid pools with known USD balance)
         if self.balance_usd is not None and self.balance_usd <= 0.0:
+            return True
+
+        # Coding-plan remaining ratio. 8% is exhaustion, not the UI handoff line.
+        if self.remaining_ratio is not None and self.remaining_ratio <= 0.08:
             return True
 
         # Request count limit check
@@ -116,6 +124,10 @@ class RateLimitSnapshot:
             "reset_tokens_s": self.reset_tokens_s,
             "balance_usd": self.balance_usd,
             "is_free_tier": self.is_free_tier,
+            "remaining_ratio": self.remaining_ratio,
+            "plan": self.plan,
+            "windows": self.windows,
+            "note": self.note,
             "is_exhausted": self.is_exhausted(),
             "seconds_until_reset": round(self.seconds_until_reset(), 2),
             "updated_at": self.updated_at,
@@ -401,8 +413,16 @@ class QuotaTracker:
                 snap.limit_tokens = _parse_int(data["total_tokens"])
             if "is_free_tier" in data:
                 snap.is_free_tier = bool(data["is_free_tier"])
+            if data.get("remaining_ratio") is not None:
+                snap.remaining_ratio = _parse_float(data.get("remaining_ratio"))
+            if data.get("plan"):
+                snap.plan = str(data["plan"])
+            if isinstance(data.get("windows"), list):
+                snap.windows = list(data["windows"])
+            if "note" in data:
+                snap.note = str(data.get("note") or "")
             snap.updated_at = time.time()
-            snap.source = "api"
+            snap.source = str(data.get("source") or "api")
             self._snapshots[pool_name] = snap
             self._check_and_emit_alert(snap)
             return snap

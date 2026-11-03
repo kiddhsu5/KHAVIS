@@ -3898,6 +3898,7 @@ _WORKBENCH_CLIENT_JS = """    let currentTab = 'command';
         const sharedChanged = Array.isArray(data.shared_changed_files) ? data.shared_changed_files : [];
         const producedMap = new Map();
         const baseDir = String(data.shared_dir || '').replace(/\\/+$/, '');
+        // 本輪產出文檔嚴格限定於後端回傳的 output_files（成果交付文檔），程式碼修改則由專案檔案 Diff 檢視
         (Array.isArray(data.output_files) ? data.output_files : []).forEach(f => {
           const p = typeof f === 'string' ? f : (f && f.path ? String(f.path) : '');
           if (!p) return;
@@ -3909,32 +3910,6 @@ _WORKBENCH_CLIENT_JS = """    let currentTab = 'command';
             size: (f && f.size) ? String(f.size) : ''
           });
         });
-        sharedChanged.forEach(f => {
-          const p = typeof f === 'string' ? f : (f && f.path ? String(f.path) : '');
-          if (!p) return;
-          const full = (f && f.full_path) ? String(f.full_path) : (baseDir ? `${baseDir}/${p}` : p);
-          producedMap.set(p, {
-            path: p,
-            full_path: full,
-            status: (f && f.status) ? String(f.status) : 'M',
-            size: (f && f.size) ? String(f.size) : ''
-          });
-        });
-        if (Array.isArray(data.results)) {
-          data.results.forEach(r => {
-            const rDir = String((r && r.cwd) || baseDir || '').replace(/\\/+$/, '');
-            (Array.isArray(r && r.changed_files) ? r.changed_files : []).forEach(cf => {
-              const p = typeof cf === 'string' ? cf : (cf && cf.path ? String(cf.path) : '');
-              if (!p || producedMap.has(p)) return;
-              producedMap.set(p, {
-                path: p,
-                full_path: (cf && cf.full_path) ? String(cf.full_path) : (rDir ? `${rDir}/${p}` : p),
-                status: (cf && cf.status) ? String(cf.status) : 'M',
-                size: (cf && cf.size) ? String(cf.size) : ''
-              });
-            });
-          });
-        }
         const producedFiles = Array.from(producedMap.values());
         latestProducedFiles = producedFiles;
 

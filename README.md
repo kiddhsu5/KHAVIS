@@ -10,11 +10,11 @@ KHAVIS integrates multiple CLI agents with a self-hostable LLM router. Share a p
 [![Project site](https://img.shields.io/badge/Project_Site-khavis.khorus.tech-0EA5E9)](https://khavis.khorus.tech)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[繁體中文 README](README.zh-TW.md) · Project site: [khavis.khorus.tech](https://khavis.khorus.tech) · Workbench: [khavis.khorus.tech/workbench](https://khavis.khorus.tech/workbench)
+[繁體中文 README](README.zh-TW.md) · Project site: [khavis.khorus.tech](https://khavis.khorus.tech) · Workbench: [khavis.khorus.tech/workbench-c](https://khavis.khorus.tech/workbench-c) (task stream) · [khavis.khorus.tech/workbench](https://khavis.khorus.tech/workbench) (quota handoff console)
 
 ## The workbench: from a task to a verifiable deliverable
 
-The conversation stream stays central. Agents, providers, and model settings live on the dedicated `/agents` page; the document library lives at `/database`. Model IDs and thinking modes come from connected providers' own catalogues — KHAVIS never invents capabilities it cannot verify.
+Two surfaces ship together: the **quota handoff console** at `/workbench` (live credit meters across pools) and the **task workbench** at `/workbench-c` (conversation stream, per-turn outputs, agent roster). Agents, providers, and model settings live on the dedicated `/agents` page; the document library lives at `/database`. Model IDs and thinking modes come from connected providers' own catalogues — KHAVIS never invents capabilities it cannot verify.
 
 The library archives outputs by conversation topic, keeps the producing task on record, and offers format filters, previews, and downloads. Classification uses local rules with restricted content samples — no paid model calls, no full-text or vector knowledge base.
 
