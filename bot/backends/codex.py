@@ -280,7 +280,14 @@ def _juapi_openai_base_url() -> str:
 
 
 def _parse_codex_output(raw: str) -> tuple[str, str, int, int]:
-    """Best-effort: many CLI shapes (JSON, JSONL, plain)."""
+    """Best-effort: many CLI shapes (JSON, JSONL event stream, plain).
+
+    The Codex CLI emits an event stream (one JSON object per line):
+    ``item.completed`` carries the assistant answer inside ``item`` and
+    ``turn.completed`` carries usage. Reading only the first line with text
+    would return the raw event stream as the answer, so the stream is
+    scanned and the answer/tokens are collected.
+    """
     raw = (raw or "").strip()
     if not raw:
         return "", "", 0, 0
@@ -288,7 +295,45 @@ def _parse_codex_output(raw: str) -> tuple[str, str, int, int]:
     text, model, tin, tout = _try_json_one(raw)
     if text or model or tin or tout:
         return text, model, tin, tout
-    # Otherwise scan for JSONL or {"role":"assistant",...} entries.
+
+    # JSONL: collect the agent message and the turn usage.
+    stream_text = ""
+    stream_model = ""
+    stream_in = 0
+    stream_out = 0
+    saw_event = False
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        event_type = str(event.get("type") or "")
+        if event_type.startswith("item."):
+            saw_event = True
+            item = event.get("item")
+            if isinstance(item, dict) and item.get("type") == "agent_message":
+                candidate = str(item.get("text") or "")
+                if candidate:
+                    stream_text = candidate
+        elif event_type == "turn.completed":
+            saw_event = True
+            usage = event.get("usage") or {}
+            if isinstance(usage, dict):
+                stream_in = int(usage.get("input_tokens") or usage.get("input") or 0)
+                stream_out = int(usage.get("output_tokens") or usage.get("output") or 0)
+        elif event_type:
+            saw_event = True
+        if event.get("model"):
+            stream_model = str(event["model"])
+    if saw_event:
+        return stream_text, stream_model, stream_in, stream_out
+
+    # Otherwise scan for {"role":"assistant",...} entries.
     for line in raw.splitlines():
         line = line.strip()
         if not line.startswith("{"):

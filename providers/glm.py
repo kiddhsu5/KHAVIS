@@ -61,3 +61,17 @@ class GLMPlugin(OpenAIChatPlugin):
             "provider": self.provider_id,
             "note": "BigModel quota endpoint requires authenticated account probe.",
         }
+
+    def chat(self, messages: list[dict[str, str]], **kwargs: Any) -> dict[str, Any]:
+        requested = kwargs.get("model") or self.model or self.DEFAULT_MODEL
+        try:
+            return super().chat(messages, **kwargs)
+        except Exception as exc:  # noqa: BLE001
+            err_s = str(exc)
+            # Coding Plan subscriptions list glm-5.3-flashx in /models yet reject it
+            # with code 1311 (or 1211 on retired aliases); retry once on glm-5.3.
+            if requested != "glm-5.3" and ("1311" in err_s or "1211" in err_s):
+                retry_kw = dict(kwargs)
+                retry_kw["model"] = "glm-5.3"
+                return super().chat(messages, **retry_kw)
+            raise

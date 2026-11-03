@@ -16,7 +16,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Iterable
-from datetime import UTC, datetime
+try:
+    from datetime import UTC, datetime
+except ImportError:
+    from datetime import datetime, timezone
+    UTC = timezone.utc
 from typing import Any
 
 _MODE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,31}$")

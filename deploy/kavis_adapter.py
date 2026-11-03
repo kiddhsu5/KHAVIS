@@ -78,14 +78,27 @@ def _flatten_messages(messages: Any) -> str:
     return "\n\n".join(parts)[:MAX_PROMPT_CHARS]
 
 
+_DEFAULT_MODEL_ALIASES = {
+    "hermes",
+    "hermes-default",
+    "default",
+    "auto",
+    "khavis",
+    "kavis",
+    "langgraph-7-role",
+    "langgraph 7-role",
+}
+
+
 def _run_hermes(prompt: str, model: str) -> dict[str, Any]:
     """序列化執行 hermes 單次無頭呼叫。回傳 {text} 或 {error}。"""
     env = dict(os.environ)
     env.setdefault("HERMES_HOME", os.path.expanduser("~/.hermes"))
-    cmd = [HERMES_BIN]
-    if model and _MODEL_RE.match(model):
-        cmd += ["-m", model]
-    cmd += ["-z", prompt]
+    clean_model = (model or "").strip()
+    if clean_model.lower() in _DEFAULT_MODEL_ALIASES:
+        clean_model = ""
+    use_model = bool(clean_model and _MODEL_RE.match(clean_model))
+    cmd = [HERMES_BIN, *(["-m", clean_model] if use_model else []), "-z", prompt]
     with _hermes_lock:
         try:
             proc = subprocess.run(
@@ -96,6 +109,21 @@ def _run_hermes(prompt: str, model: str) -> dict[str, Any]:
                 env=env,
                 cwd=env["HERMES_HOME"],
             )
+            # 若呼叫端傳入的模型名稱不屬於 hermes 當前供應商，自動退回 hermes 預設模型重試一次
+            err_preview = ((proc.stderr or "") + "\n" + (proc.stdout or "")).lower()
+            if (
+                proc.returncode != 0
+                and use_model
+                and ("isn't available" in err_preview or "unknown model" in err_preview)
+            ):
+                proc = subprocess.run(
+                    [HERMES_BIN, "-z", prompt],
+                    capture_output=True,
+                    text=True,
+                    timeout=HERMES_TIMEOUT_S,
+                    env=env,
+                    cwd=env["HERMES_HOME"],
+                )
         except subprocess.TimeoutExpired:
             return {"error": f"hermes timeout after {HERMES_TIMEOUT_S}s"}
         except OSError as exc:

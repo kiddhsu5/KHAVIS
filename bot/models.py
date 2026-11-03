@@ -6,9 +6,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-BackendName = (
-    Literal["claude", "codex", "antigravity", "minimax", "opencode", "khavis", "judge"] | str
-)
+from typing import Union  # noqa: F401
+BackendName = Union[
+    Literal["claude", "codex", "antigravity", "minimax", "opencode", "khavis", "judge"], str
+]
 
 
 class IncomingMessage(BaseModel):

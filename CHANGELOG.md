@@ -2,6 +2,18 @@
 
 本專案的版本與功能狀態以此檔案、實作與測試為準。語意化版本：`MAJOR.MINOR.PATCH`。
 
+## [Unreleased]
+
+### 額度交接台與工作台分流
+
+- `/workbench`：額度交接台（額度即時讀數），`/workbench-c`：任務工作台（對話串與產出）。
+- 文件庫主題分類（`core/document_topics.py`）：有界且確定性的關鍵詞分類，不執行文件內容。
+- 文件庫唯讀索引（`core/document_library.py`）與 `docs/DOCUMENT_LIBRARY.md`。
+- Coding Plan 額度探測（`core/coding_plan_quota.py`）：額度來源新增 coding-plan 類型，金鑰只留環境變數、不寫日誌。
+- 派工與歷史強化：產出檔判定、歷史刪除與 prompt 比對。
+- Agentic CLI shim（`deploy/cli_shim.py`）：雲端主機缺少原生 CLI 時提供可執行替代。
+- 修正：`claude`/`codex` CLI 以 exit 0 回報錯誤或事件流時不再被當成成功結果。
+
 ## [0.5.0] — 2026-10-30
 
 第一個對外公開的完整工作台版本（public release）。

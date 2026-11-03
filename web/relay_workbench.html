@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>K.H.A.V.I.S. · 額度交接台</title>
+<style>
+  :root {
+    --stage: #0e0e0d;
+    --app: #1a1a19;
+    --side: #151514;
+    --panel: #1f1f1e;
+    --card: #262624;
+    --bubble: #30302e;
+    --fg: #f7f6f2;
+    --fg2: #cfcdc4;
+    --muted: #a3a19a;
+    --faint: #6b6a64;
+    --line: #3a3a37;
+    --line2: #4a4945;
+    --hover: #262624;
+    --ok: #3ccf74;
+    --warn: #e0a15a;
+    --bad: #e06a66;
+    --info: #7cb0ff;
+    --spark: #8ee8ff;
+    --side-w: 268px;
+    --rail-w: 348px;
+    --font: "PingFang TC", "PingFang SC", "SF Pro Text", "Noto Sans TC", sans-serif;
+    --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font: 14px/1.55 var(--font);
+    background: var(--stage);
+    color: var(--fg);
+    display: grid;
+    grid-template-columns: var(--side-w) minmax(0, 1fr) var(--rail-w);
+    overflow: hidden;
+  }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: .45; }
+  ::selection { background: rgba(140, 232, 255, .28); }
+  :focus-visible { outline: 2px solid var(--spark); outline-offset: 2px; }
+  .mono { font-family: var(--mono); }
+
+  .side, .rail {
+    background: var(--side);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+  .side { border-right: 1px solid var(--line); }
+  .rail { border-left: 1px solid var(--line); background: var(--app); }
+
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 14px 10px;
+  }
+  .mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: grid; place-items: center;
+    background: var(--fg); color: var(--stage);
+    font-weight: 720; letter-spacing: -.04em; position: relative;
+  }
+  .mark i {
+    position: absolute; top: 3px; right: 3px;
+    width: 6px; height: 6px; border-radius: 99px; background: var(--spark);
+  }
+  .brand h1 { margin: 0; font-size: 13px; letter-spacing: .08em; font-weight: 680; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+  .dot {
+    width: 6px; height: 6px; border-radius: 99px; background: var(--ok);
+    display: inline-block; margin-right: 5px; vertical-align: 1px;
+  }
+  .dot.warn { background: var(--warn); }
+  .dot.bad { background: var(--bad); }
+
+  .new-task, .go, .ghost, .seg button, .chip, .agent-chip, .icon-btn {
+    border: 1px solid transparent;
+    background: transparent;
+  }
+  .new-task {
+    margin: 4px 12px 12px; height: 36px; border-radius: 10px;
+    background: var(--fg); color: var(--stage); font-weight: 650; font-size: 13px;
+  }
+  .new-task:hover { filter: brightness(1.06); }
+  .nav { display: flex; flex-direction: column; gap: 2px; padding: 0 8px 8px; }
+  .nav button {
+    display: flex; align-items: center; gap: 8px;
+    height: 34px; padding: 0 8px; border-radius: 8px;
+    border: 0; background: transparent; color: var(--fg2); text-align: left; font-size: 13px;
+  }
+  .nav button.on { background: var(--card); color: var(--fg); }
+  .nav button:hover { background: var(--hover); }
+  .nav .meta { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .hist-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px 6px; color: var(--faint); font-size: 11px; letter-spacing: .08em;
+  }
+  .filters { display: flex; gap: 6px; padding: 0 12px 8px; }
+  .chip {
+    border: 1px solid var(--line); color: var(--muted);
+    border-radius: 999px; padding: 2px 8px; font-size: 11px; background: transparent;
+  }
+  .chip.on { color: var(--fg); border-color: var(--line2); background: var(--card); }
+  .list { flex: 1; overflow: auto; padding: 0 8px 12px; }
+  .item {
+    width: 100%; text-align: left; border: 1px solid transparent;
+    background: transparent; border-radius: 10px; padding: 8px 8px; margin-bottom: 2px;
+  }
+  .item:hover, .item.on { background: var(--card); }
+  .item .t { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .s { margin-top: 2px; color: var(--muted); font-size: 11px; }
+  .item-row { display: flex; align-items: stretch; gap: 2px; }
+  .item-row .item { flex: 1; min-width: 0; }
+  .item-x {
+    width: 28px; border: 0; border-radius: 8px; background: transparent;
+    color: var(--faint); font-size: 14px;
+  }
+  .item-x:hover { color: var(--bad); background: var(--card); }
+  .hist-clear {
+    margin-left: auto; border: 0; background: transparent; color: var(--muted);
+    font-size: 11px; letter-spacing: 0;
+  }
+  .hist-clear:hover { color: var(--bad); }
+  .side-foot { border-top: 1px solid var(--line); padding: 10px 12px 12px; }
+  .side-foot .row { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .mini-q { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 3px 0; }
+  .mini-q b { font-weight: 600; }
+  .mini-q span { font-family: var(--mono); font-size: 11px; color: var(--fg2); }
+
+  .main { min-width: 0; display: flex; flex-direction: column; background: var(--stage); }
+  .top {
+    height: 48px; display: flex; align-items: center; gap: 8px;
+    padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--app);
+  }
+  .crumb { font-size: 13px; color: var(--fg2); }
+  .crumb b { color: var(--fg); font-weight: 650; }
+  .spacer { flex: 1; }
+  .ghost {
+    height: 28px; padding: 0 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--fg2); font-size: 12px;
+  }
+  .ghost:hover { color: var(--fg); border-color: var(--line2); }
+  .scroll { flex: 1; overflow: auto; padding: 18px 22px 8px; }
+  .page { display: none; max-width: 760px; margin: 0 auto; }
+  .page.on { display: block; }
+  .kicker { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+  .card {
+    background: var(--app);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .card h3 { margin: 0 0 4px; font-size: 14px; font-weight: 650; }
+  .sub { color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .lane { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .who { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: grid; place-items: center; background: var(--card); color: var(--fg); font-weight: 700;
+  }
+  .pct { font-family: var(--mono); font-size: 22px; letter-spacing: -.04em; }
+  .pct small { font-size: 12px; color: var(--muted); margin-left: 2px; }
+  .state {
+    font-size: 11px; padding: 2px 7px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+  }
+  .state.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+  .state.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+  .state.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+  .state.info { color: var(--info); border-color: color-mix(in srgb, var(--info) 40%, var(--line)); }
+  .note {
+    border: 1px solid var(--line); background: var(--panel); border-radius: 12px;
+    padding: 10px 12px; color: var(--fg2); font-size: 12.5px; line-height: 1.55; margin-bottom: 12px;
+  }
+  .note strong { color: var(--fg); font-weight: 650; }
+  .turns { display: flex; flex-direction: column; gap: 10px; }
+  .bubble {
+    max-width: 92%; border-radius: 14px; padding: 10px 12px;
+    border: 1px solid var(--line); background: var(--panel);
+  }
+  .bubble.user { margin-left: auto; background: var(--bubble); }
+  .bubble .meta { color: var(--faint); font-size: 11px; margin-bottom: 4px; }
+  .bubble pre {
+    margin: 0; white-space: pre-wrap; word-break: break-word;
+    font: 13px/1.55 var(--font);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--faint); font-weight: 550; font-size: 11px; letter-spacing: .04em; }
+
+  .composer {
+    border-top: 1px solid var(--line);
+    padding: 10px 16px 12px;
+    background: var(--app);
+  }
+  .composer-box {
+    max-width: 760px; margin: 0 auto;
+    border: 1px solid var(--line2); background: var(--panel);
+    border-radius: 16px; padding: 8px 10px 10px;
+  }
+  .seg { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .seg button {
+    height: 26px; padding: 0 9px; border-radius: 8px;
+    border: 1px solid var(--line); color: var(--muted); font-size: 12px; background: transparent;
+  }
+  .seg button.on { color: var(--stage); background: var(--fg); border-color: var(--fg); }
+  textarea {
+    width: 100%; min-height: 72px; max-height: 180px; resize: vertical;
+    border: 0; background: transparent; outline: none; padding: 4px 2px;
+    font-size: 14px; line-height: 1.5;
+  }
+  textarea::placeholder { color: var(--faint); }
+  .agents { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+  .agent-chip {
+    height: 28px; padding: 0 9px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--fg2); font-size: 12px; background: var(--app);
+  }
+  .agent-chip.on { color: var(--fg); border-color: var(--fg); }
+  .agent-chip .q { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-left: 4px; }
+  .agent-chip.warn { border-color: color-mix(in srgb, var(--warn) 55%, var(--line)); }
+  .agent-chip.bad { opacity: .55; }
+  .composer-foot { display: flex; align-items: center; gap: 8px; }
+  .hint { flex: 1; color: var(--faint); font-size: 11px; line-height: 1.4; }
+  .go {
+    height: 34px; padding: 0 14px; border-radius: 10px;
+    background: var(--fg); color: var(--stage); font-weight: 680; font-size: 13px; white-space: nowrap;
+  }
+  .go:hover:not(:disabled) { filter: brightness(1.06); }
+
+  .rail-h {
+    height: 48px; display: flex; align-items: center; gap: 8px;
+    padding: 0 14px; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 650;
+  }
+  .rail-body { flex: 1; overflow: auto; padding: 12px; }
+  .step-row {
+    display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px;
+    padding: 8px 0; border-bottom: 1px solid var(--line);
+  }
+  .idx {
+    width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center;
+    background: var(--card); color: var(--fg2); font-family: var(--mono); font-size: 11px;
+  }
+  .step-row .name { font-size: 13px; font-weight: 620; }
+  .step-row .meta { color: var(--muted); font-size: 11px; margin-top: 1px; }
+  select, .textin {
+    width: 100%; margin-top: 6px; height: 30px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--fg); padding: 0 8px; font-size: 12px;
+  }
+  .meter { height: 4px; border-radius: 99px; background: var(--card); overflow: hidden; margin-top: 6px; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--ok); }
+  .meter i.warn { background: var(--warn); }
+  .meter i.bad { background: var(--bad); }
+  .row-actions { display: flex; gap: 4px; margin-top: 6px; align-items: center; }
+  .row-actions .textin { flex: 1; width: auto; min-width: 0; margin-top: 0; }
+  .icon-btn {
+    height: 28px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line);
+    color: var(--muted); font-size: 11px; background: transparent; white-space: nowrap; flex: 0 0 auto;
+  }
+  .icon-btn:hover { color: var(--fg); }
+  .slider-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--fg2); }
+  input[type="range"] { flex: 1; accent-color: var(--fg); }
+  .pack label {
+    display: flex; gap: 8px; align-items: flex-start;
+    padding: 6px 0; font-size: 12.5px;
+  }
+  .pack b { display: block; font-weight: 620; }
+  .pack span { color: var(--muted); font-size: 11px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    background: var(--fg); color: var(--stage); border-radius: 10px;
+    padding: 8px 12px; font-size: 12.5px; display: none; z-index: 5; max-width: min(560px, 92vw);
+  }
+  .field { margin-top: 10px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  @media (min-width: 1101px) { #btn-rail { display: none; } }
+  @media (max-width: 1100px) {
+    body { grid-template-columns: var(--side-w) minmax(0, 1fr); }
+    .rail { display: none; }
+    body.show-rail { grid-template-columns: minmax(0, 1fr) var(--rail-w); }
+    body.show-rail .side { display: none; }
+    body.show-rail .rail { display: flex; }
+  }
+  @media (max-width: 760px) {
+    body, body.show-rail { grid-template-columns: 1fr; }
+    .side { display: none; }
+    .lane { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<aside class="side">
+  <div class="brand">
+    <div class="mark">K<i></i></div>
+    <div>
+      <h1>K.H.A.V.I.S.</h1>
+      <p><span class="dot" id="live-dot"></span><span id="node-label">額度交接台</span></p>
+    </div>
+  </div>
+  <button class="new-task" id="btn-new" type="button">＋ 新工作任務</button>
+  <nav class="nav">
+    <button class="on" type="button" data-page="handoff">交接<span class="meta" id="nav-risk">—</span></button>
+    <button type="button" data-page="thread">對話<span class="meta" id="nav-turns">0</span></button>
+    <button type="button" data-page="rules">規則</button>
+  </nav>
+  <div class="hist-head">HISTORY <button type="button" class="hist-clear" id="btn-clear-history">清除</button></div>
+  <div class="filters">
+    <button class="chip on" type="button" data-filter="all">全部</button>
+    <button class="chip" type="button" data-filter="ok">完成</button>
+    <button class="chip" type="button" data-filter="fail">失敗</button>
+  </div>
+  <div class="list" id="history"></div>
+  <div class="side-foot" id="foot"></div>
+</aside>
+
+<section class="main">
+  <header class="top">
+    <div class="crumb">工作台 / <b id="crumb">額度交接</b></div>
+    <div class="spacer"></div>
+    <button class="ghost" id="btn-rail" type="button">交接鏈</button>
+    <button class="ghost" id="btn-refresh" type="button">重新整理</button>
+    <button class="ghost" id="btn-legacy" type="button">舊版工作台</button>
+  </header>
+  <div class="scroll">
+    <div class="page on" id="page-handoff">
+      <div class="kicker" id="src-kicker">讀取中</div>
+      <div id="alert"></div>
+      <div class="lane">
+        <div class="card">
+          <h3>目前持有</h3>
+          <div class="sub" id="holder-sub">尚未排鏈。</div>
+          <div class="who">
+            <div class="avatar" id="holder-av">—</div>
+            <div style="flex:1;min-width:0">
+              <div id="holder-name" style="font-weight:680">待命</div>
+              <div class="sub" id="holder-model">模型未選</div>
+            </div>
+            <div style="text-align:right">
+              <div class="pct" id="holder-pct">—</div>
+              <div class="state info" id="holder-state">待觀測</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>下一位接手</h3>
+          <div class="sub" id="next-sub">需要另一個 coding plan，而且剩餘額度高於門檻。</div>
+          <div class="who">
+            <div class="avatar" id="next-av">—</div>
+            <div style="flex:1;min-width:0">
+              <div id="next-name" style="font-weight:680">尚未選出</div>
+              <div class="sub" id="next-model">—</div>
+            </div>
+            <div class="state info" id="next-state">候補</div>
+          </div>
+        </div>
+      </div>
+      <div class="note" id="gap-note"></div>
+      <div class="turns" id="turns"></div>
+    </div>
+
+    <div class="page" id="page-thread">
+      <div class="kicker">THREAD</div>
+      <h2 id="thread-title" style="margin:0 0 6px;font-size:20px;font-weight:650">尚未選擇對話</h2>
+      <p class="sub" id="thread-meta" style="margin:0 0 12px">左側歷史來自 /api/workbench/history。選一筆之後可以接續，不會把同一句 prompt 再貼一次就算交接。</p>
+      <div id="thread-body"></div>
+    </div>
+
+    <div class="page" id="page-rules">
+      <div class="kicker">POLICY</div>
+      <h2 style="margin:0 0 6px;font-size:20px;font-weight:650">提前交接，不是耗盡後補救</h2>
+      <p class="sub" style="margin:0 0 12px">流程、agent 順序、每個 agent 的模型都可以改。額度數字只採用 /api/quota 回報的剩餘比例，沒有回報就不顯示百分比。</p>
+      <div class="card">
+        <table>
+          <tr><th>條件</th><th>這一版會做的事</th></tr>
+          <tr><td>剩餘額度 ≤ 門檻（預設 20%）</td><td>不把該 coding plan 排進自動鏈的持有或接手</td></tr>
+          <tr><td>同一個 coding plan 上有多支 CLI</td><td>只留一支當交接對象，其餘標成同計畫備援</td></tr>
+          <tr><td>額度端點未確認</td><td>顯示未觀測，不自動當成接手者</td></tr>
+          <tr><td>你按執行，且鏈上至少兩支不同計畫</td><td>以 relay 送出。下一棒會讀到上一棒輸出</td></tr>
+          <tr><td>單一 CLI 呼叫進行到一半</td><td>現有後端不會因 20% 中途凍結。那需要 orchestrator preflight，目前沒有</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>寫入範圍</h3>
+        <p class="sub">選模型只影響這一次派工的 agent_models，不會改雲端預設。寫入預設是另一個按鈕，而且要有 Console Token。Token 只留在這個分頁的 sessionStorage，不會寫進檔案。</p>
+        <div class="field">
+          <label for="token">Console Token</label>
+          <input class="textin" id="token" type="password" autocomplete="off" placeholder="只在要寫入預設或同源派工被拒時才需要">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="composer">
+    <div class="composer-box">
+      <div class="seg" id="workflows">
+        <button type="button" class="on" data-mode="preempt">提前交接</button>
+        <button type="button" data-mode="relay">順序接力</button>
+        <button type="button" data-mode="critique">交叉審查</button>
+        <button type="button" data-mode="parallel">獨立並發</button>
+        <button type="button" data-mode="auto_loop">自動迴圈</button>
+      </div>
+      <textarea id="prompt" placeholder="描述要完成的工作。提前交接會在啟動前把鏈排到還有餘裕的 coding plan，不會等 429 之後再補救。"></textarea>
+      <div class="agents" id="agent-picks"></div>
+      <div class="composer-foot">
+        <div class="hint" id="composer-hint">選至少兩個不同 coding plan 的 agent。</div>
+        <button class="go" id="btn-go" type="button">依此鏈執行</button>
+      </div>
+    </div>
+  </footer>
+</section>
+
+<aside class="rail">
+  <div class="rail-h">執行流程 <span class="spacer"></span><span id="chain-order" class="mono" style="font-weight:500;font-size:11px;color:var(--muted)"></span></div>
+  <div class="rail-body">
+    <div id="chain"></div>
+    <div class="card" style="box-shadow:none">
+      <h3>交接門檻</h3>
+      <div class="sub">綁定窗口是各時段剩餘比例的最小值。低於門檻的計畫不會自動排進鏈。</div>
+      <div class="slider-row">
+        <span>門檻</span>
+        <input id="threshold" type="range" min="8" max="40" step="1" value="20">
+        <span class="mono" id="threshold-label">20%</span>
+      </div>
+    </div>
+    <div class="card" style="box-shadow:none">
+      <h3>交接包</h3>
+      <div class="pack" id="pack"></div>
+    </div>
+    <div class="card" style="box-shadow:none">
+      <h3>這一棒的模型</h3>
+      <div class="sub" id="model-note">下拉選的是該 agent 已登錄的模型。顯示時會去掉金鑰環境變數前綴。</div>
+      <div id="model-editors"></div>
+    </div>
+  </div>
+</aside>
+<div class="toast" id="toast"></div>
+
+<script>
+// 同源優先：自架部署時指向自己的站台；離開線時退回官方示範站
+const LIVE = (location.origin && location.origin !== "null")
+  ? location.origin
+  : "https://khavis.khorus.tech";
+const STORE = "khavis-relay-v1";
+const TOKEN_KEY = "khavis-console-token";
+const MODEL_RE = /^[A-Za-z0-9._:\-/]{1,80}$/;
+
+const SNAPSHOT = {
+  generated: "2026-11-03",
+  quotas: {
+    "MiniMax-M3": {
+      remaining_ratio: 0.99,
+      plan: "MiniMax Coding Plan",
+      source: "coding-plan",
+      is_exhausted: false,
+      windows: [
+        { label: "本段", remaining_ratio: 0.99 },
+        { label: "本週", remaining_ratio: 0.99 }
+      ]
+    },
+    "GLM-5.3": {
+      remaining_ratio: 0.2261,
+      plan: "GLM Coding Plan · lite",
+      source: "coding-plan",
+      is_exhausted: false,
+      windows: [
+        { label: "5 小時", remaining_ratio: 0.836, remaining: 1672, total: 2000 },
+        { label: "本週", remaining_ratio: 0.2261, remaining: 2261, total: 10000 }
+      ]
+    }
+  },
+  pools: [
+    { name: "MiniMax-M3", provider_id: "MiniMax", ok: true },
+    { name: "Claude-API", provider_id: "claude", ok: false },
+    { name: "Google-Gemini", provider_id: "gemini", ok: true },
+    { name: "GLM-5.3", provider_id: "glm", ok: true },
+    { name: "MiMo-Code", provider_id: "mimo", ok: false },
+    { name: "OpenAI-API", provider_id: "openai", ok: false },
+    { name: "Moonshot-Kimi", provider_id: "openai_compat", ok: false }
+  ],
+  agents: [
+    { id: "claude", name: "Claude Code", model: "JUAPI_API_KEY::gemini-4-argon", options: ["JUAPI_API_KEY::gemini-4-argon", "JUAPI_API_KEY::kimi-k3.1-pro-highspeed", "ZHIPUAI_API_KEY::glm-5.3-flash"], adjustable: true, status: "ready", installed: true },
+    { id: "codex", name: "OpenAI Codex", model: "MiniMax-M3.1-Flash", options: ["MiniMax-M3.1-Flash", "JUAPI_API_KEY::gemini-4-argon", "JUAPI_API_KEY::kimi-k3.1-pro", "MINIMAX_API_KEY::MiniMax-M3.1-Flash"], adjustable: true, status: "ready", installed: true },
+    { id: "antigravity", name: "Antigravity", model: "antigravity-pro", options: ["antigravity-pro", "antigravity-flash", "antigravity-ultra"], adjustable: true, status: "ready", installed: true },
+    { id: "minimax", name: "MiniMax Code", model: "MINIMAX_API_KEY::MiniMax-M3.1-Flash", options: ["MINIMAX_API_KEY::MiniMax-M3.1-Flash"], adjustable: true, status: "ready", installed: true },
+    { id: "opencode", name: "OpenCode", model: "ZHIPUAI_API_KEY::glm-5.3-flash", options: ["ZHIPUAI_API_KEY::glm-5.3-flash", "ZHIPUAI_API_KEY::glm-5.3"], adjustable: true, status: "ready", installed: true },
+    { id: "cmdcode", name: "Command Code", model: "anthropic/claude-sonnet-4", options: ["anthropic/claude-sonnet-4", "openai/gpt-5-codex"], adjustable: true, status: "mock_ready", installed: false },
+    { id: "khavis", name: "K.A.V.I.S.", model: "LangGraph 7-Role", options: ["LangGraph 7-Role"], adjustable: false, status: "ready", installed: true }
+  ],
+  history: []
+};
+
+const STATE = {
+  source: "pending",
+  sameOrigin: false,
+  quotas: {},
+  pools: [],
+  agents: [],
+  history: [],
+  filter: "all",
+  page: "handoff",
+  workflow: "preempt",
+  order: [],
+  models: {},
+  extraOptions: {},
+  threshold: 0.2,
+  lockOrder: false,
+  pack: { goal: true, done: true, files: true, next: true, constraints: true },
+  activeId: null,
+  continueFrom: null,
+  busy: false,
+  turns: []
+};
+
+const $ = (id) => document.getElementById(id);
+
+function toast(msg) {
+  const el = $("toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { el.style.display = "none"; }, 4600);
+}
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function cleanModel(v) {
+  const s = String(v || "");
+  const i = s.lastIndexOf("::");
+  return i >= 0 ? s.slice(i + 2) : s;
+}
+
+function fmtPct(n) {
+  if (n == null || !Number.isFinite(n)) return "未觀測";
+  const p = n * 100;
+  if (p >= 10 && Math.abs(p - Math.round(p)) < 0.05) return Math.round(p) + "%";
+  return p.toFixed(1) + "%";
+}
+
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(STORE) || "{}"); }
+  catch { return {}; }
+}
+
+function savePrefs() {
+  const data = {
+    workflow: STATE.workflow,
+    order: STATE.order,
+    models: STATE.models,
+    extraOptions: STATE.extraOptions,
+    threshold: STATE.threshold,
+    lockOrder: STATE.lockOrder,
+    pack: STATE.pack
+  };
+  try { localStorage.setItem(STORE, JSON.stringify(data)); } catch { /* quota full is non-fatal */ }
+}
+
+function planKey(agent, model) {
+  const name = cleanModel(model || agent?.model).toLowerCase();
+  const id = String(agent?.id || "").toLowerCase();
+  if (name.includes("minimax") || (id === "minimax" && !name)) return "MiniMax-M3";
+  if (name.includes("glm") || name.includes("codegeex") || name.includes("zhipu")) return "GLM-5.3";
+  if (name.includes("antigravity") || id === "antigravity") return "";
+  if (name.includes("gemini")) return "Google-Gemini";
+  if (name.includes("claude") || name.includes("anthropic")) return "Claude-API";
+  if (name.includes("kimi") || name.includes("moonshot")) return "Moonshot-Kimi";
+  if (name.includes("gpt") || name.includes("openai") || name.includes("codex")) return "OpenAI-API";
+  if (name.includes("deepseek")) return "DeepSeek-Official";
+  if (name.includes("qwen")) return "Qwen-DashScope";
+  if (name.includes("mimo")) return "MiMo-Code";
+  if (name.includes("grok")) return "xAI-Grok";
+  return "";
+}
+
+function poolOf(name) {
+  return (STATE.pools || []).find((p) => p.name === name) || null;
+}
+
+function quotaInfo(plan) {
+  if (!plan) {
+    return { plan: "", ratio: null, windows: [], label: "沒有已確認的額度端點", observed: false, exhausted: false, poolOk: null };
+  }
+  const pool = poolOf(plan);
+  const q = STATE.quotas[plan];
+  if (!q) {
+    return {
+      plan,
+      ratio: null,
+      windows: [],
+      label: pool ? (pool.ok ? "池健康，額度未回報" : "池不可用") : "無對應池",
+      observed: false,
+      exhausted: false,
+      poolOk: pool ? pool.ok === true : null
+    };
+  }
+  const windows = Array.isArray(q.windows) ? q.windows : [];
+  const nums = windows.map((w) => Number(w.remaining_ratio)).filter((n) => Number.isFinite(n));
+  let ratio = Number(q.remaining_ratio);
+  if (!Number.isFinite(ratio)) ratio = nums.length ? Math.min(...nums) : null;
+  else if (nums.length) ratio = Math.min(ratio, ...nums);
+  const binding = windows.slice().sort((a, b) => Number(a.remaining_ratio) - Number(b.remaining_ratio))[0];
+  return {
+    plan,
+    ratio: Number.isFinite(ratio) ? ratio : null,
+    windows,
+    binding: binding || null,
+    label: q.plan || plan,
+    observed: Number.isFinite(ratio),
+    exhausted: q.is_exhausted === true || (Number.isFinite(ratio) && ratio <= 0),
+    poolOk: pool ? pool.ok === true : true,
+    source: q.source || ""
+  };
+}
+
+function agentById(id) {
+  return STATE.agents.find((a) => a.id === id) || null;
+}
+
+function modelOf(agent) {
+  return STATE.models[agent.id] || agent.model || "";
+}
+
+function optionsOf(agent) {
+  const base = Array.isArray(agent.options) ? agent.options.slice() : [];
+  const extra = STATE.extraOptions[agent.id] || [];
+  const current = modelOf(agent);
+  const all = base.concat(extra);
+  if (current && !all.includes(current)) all.unshift(current);
+  return all.filter((v, i) => v && all.indexOf(v) === i);
+}
+
+function ready(agent) {
+  return !!agent && agent.status === "ready" && agent.installed !== false;
+}
+
+function viewOf(agent) {
+  const model = modelOf(agent);
+  const plan = planKey(agent, model);
+  const q = quotaInfo(plan);
+  return { agent, model, plan, q };
+}
+
+function selectedViews() {
+  return STATE.order.map(agentById).filter(Boolean).map(viewOf);
+}
+
+function autoChain() {
+  const readyAgents = STATE.agents.filter(ready);
+  const groups = new Map();
+  for (const agent of readyAgents) {
+    const view = viewOf(agent);
+    const key = view.plan || ("solo:" + agent.id);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(view);
+  }
+  const ranked = [...groups.values()].sort((a, b) => {
+    const ar = a.map((v) => v.q.ratio).filter((n) => n != null);
+    const br = b.map((v) => v.q.ratio).filter((n) => n != null);
+    const as = ar.length ? Math.max(...ar) : 0.2;
+    const bs = br.length ? Math.max(...br) : 0.2;
+    return bs - as;
+  });
+  const chain = [];
+  const bench = [];
+  for (const items of ranked) {
+    const native = (v) => (
+      (v.plan === "MiniMax-M3" && v.agent.id === "minimax") ||
+      (v.plan === "GLM-5.3" && v.agent.id === "opencode")
+    ) ? 0 : 1;
+    items.sort((a, b) => native(a) - native(b) || (b.q.ratio ?? -1) - (a.q.ratio ?? -1));
+    const best = items[0];
+    const below = best.q.observed && best.q.ratio <= STATE.threshold;
+    const dead = best.q.exhausted || best.q.poolOk === false || !best.q.observed;
+    if (dead || below) bench.push(...items);
+    else {
+      chain.push(best.agent.id);
+      bench.push(...items.slice(1));
+    }
+  }
+  return { chain, bench };
+}
+
+function applyAutoChain() {
+  if (STATE.workflow !== "preempt" || STATE.lockOrder) return;
+  STATE.order = autoChain().chain;
+}
+
+function riskOf(view) {
+  if (!view) return { cls: "info", text: "待觀測" };
+  if (!ready(view.agent)) return { cls: "bad", text: "不可用" };
+  if (view.q.exhausted || view.q.poolOk === false) return { cls: "bad", text: "不可交接" };
+  if (!view.q.observed) return { cls: "info", text: "額度未觀測" };
+  if (view.q.ratio <= 0.08) return { cls: "bad", text: "應立即避開" };
+  if (view.q.ratio <= STATE.threshold) return { cls: "warn", text: "低於門檻" };
+  if (view.q.ratio <= STATE.threshold + 0.08) return { cls: "warn", text: "接近門檻" };
+  return { cls: "ok", text: "餘裕充足" };
+}
+
+function samePlanIssue(views) {
+  const seen = new Map();
+  const dup = [];
+  for (const v of views) {
+    if (!v.plan) continue;
+    if (seen.has(v.plan)) dup.push(v.plan);
+    else seen.set(v.plan, v.agent.name);
+  }
+  return [...new Set(dup)];
+}
+
+function validate(views) {
+  const issues = [];
+  const missing = Object.entries(STATE.pack).filter(([, on]) => !on).map(([k]) => k);
+  if (missing.length) issues.push("交接包不完整");
+  if (!views.length) issues.push("還沒有 agent");
+  if (STATE.workflow === "preempt" || STATE.workflow === "relay") {
+    const plans = new Set(views.map((v) => v.plan).filter(Boolean));
+    if (views.length < 2) issues.push("至少要兩棒");
+    else if (plans.size < 2) issues.push("兩棒落在同一個或未觀測的計畫，接不了額度");
+    if (views.some((v) => v.q.observed && v.q.ratio <= STATE.threshold)) issues.push("鏈上有低於門檻的計畫");
+    if (views.some((v) => !v.q.observed)) issues.push("鏈上有額度未觀測的 agent");
+  }
+  return issues;
+}
+
+function workflowLabel(mode) {
+  return { preempt: "提前交接", relay: "順序接力", critique: "交叉審查", parallel: "獨立並發", auto_loop: "自動迴圈" }[mode] || mode;
+}
+
+function collabMode(mode) {
+  return mode === "preempt" ? "relay" : mode;
+}
+
+function renderPick() {
+  $("agent-picks").innerHTML = STATE.agents.map((a) => {
+    const on = STATE.order.includes(a.id);
+    const view = viewOf(a);
+    const risk = riskOf(view);
+    const taken = !on && view.plan && selectedViews().some((v) => v.plan === view.plan);
+    const q = taken ? "同計畫" : (view.q.observed ? fmtPct(view.q.ratio) : (ready(a) ? "未觀測" : "停"));
+    const cls = ["agent-chip", on ? "on" : "", risk.cls === "warn" ? "warn" : "", !ready(a) ? "bad" : ""].filter(Boolean).join(" ");
+    return `<button type="button" class="${cls}" data-agent="${esc(a.id)}">${esc(a.name)}<span class="q">${esc(q)}</span></button>`;
+  }).join("");
+}
+
+function renderChain() {
+  const views = selectedViews();
+  $("chain-order").textContent = views.map((v) => v.agent.id).join(" → ");
+  $("chain-order").dataset.chain = views.map((v) => v.agent.id).join(",");
+  if (!views.length) {
+    $("chain").innerHTML = `<p class="sub">還沒有排進鏈的 agent。下方晶片點一下就加入。</p>`;
+    return;
+  }
+  $("chain").innerHTML = views.map((v, i) => {
+    const risk = riskOf(v);
+    const width = v.q.observed ? Math.max(4, Math.round(v.q.ratio * 100)) : 0;
+    const meterCls = risk.cls === "ok" ? "" : risk.cls;
+    const windows = (v.q.windows || []).map((w) => `${w.label} ${fmtPct(Number(w.remaining_ratio))}`).join(" · ");
+    const planLine = v.plan
+      ? `${v.q.label}${windows ? " · " + windows : ""}`
+      : v.q.label;
+    return `<div class="step-row">
+      <div class="idx">${i + 1}</div>
+      <div>
+        <div class="name">${esc(v.agent.name)}</div>
+        <div class="meta">${esc(planLine)}</div>
+        <div class="meter"><i class="${meterCls}" style="width:${width}%"></i></div>
+        <div class="meta" style="display:flex;justify-content:space-between"><span>${esc(risk.text)}</span><span>${v.q.observed ? "剩餘 " + fmtPct(v.q.ratio) : "不顯示假百分比"}</span></div>
+        <div class="row-actions">
+          <button type="button" class="icon-btn" data-move="up" data-id="${esc(v.agent.id)}">上移</button>
+          <button type="button" class="icon-btn" data-move="down" data-id="${esc(v.agent.id)}">下移</button>
+          <button type="button" class="icon-btn" data-remove="${esc(v.agent.id)}">移出</button>
+          ${STATE.lockOrder ? "" : ""}
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderModels() {
+  const views = selectedViews().filter((v) => v.agent.adjustable !== false);
+  if (!views.length) {
+    $("model-editors").innerHTML = `<p class="sub">這條鏈上沒有可改模型的 agent。</p>`;
+    return;
+  }
+  $("model-editors").innerHTML = views.map((v) => {
+    const opts = optionsOf(v.agent).map((opt) => {
+      const sel = opt === v.model ? " selected" : "";
+      return `<option value="${esc(opt)}"${sel}>${esc(cleanModel(opt))}</option>`;
+    }).join("");
+    return `<div class="field" data-model-for="${esc(v.agent.id)}">
+      <label>${esc(v.agent.name)}</label>
+      <select data-model-agent="${esc(v.agent.id)}">${opts}</select>
+      <div class="row-actions">
+        <input class="textin" data-custom-model="${esc(v.agent.id)}" placeholder="其他模型 ID" style="height:28px">
+        <button type="button" class="icon-btn" data-add-model="${esc(v.agent.id)}">加入</button>
+        <button type="button" class="icon-btn" data-save-model="${esc(v.agent.id)}" ${STATE.sameOrigin ? "" : "disabled"} title="${STATE.sameOrigin ? "寫入這個 agent 的雲端預設模型" : "要從工作台網域打開才能寫入"}">設為預設</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderHolders() {
+  const views = selectedViews();
+  const holder = views[0] || null;
+  const next = views[1] || null;
+  const hr = riskOf(holder);
+  const nr = riskOf(next);
+  $("holder-name").textContent = holder ? holder.agent.name : "待命";
+  $("holder-av").textContent = holder ? holder.agent.name.slice(0, 1) : "—";
+  $("holder-model").textContent = holder ? cleanModel(holder.model) : "模型未選";
+  $("holder-pct").textContent = holder && holder.q.observed ? fmtPct(holder.q.ratio) : "—";
+  $("holder-state").className = "state " + hr.cls;
+  $("holder-state").textContent = hr.text;
+  $("holder-sub").textContent = holder
+    ? (holder.q.label + (holder.plan ? "" : "。這一棒不能靠未觀測額度保證做完。"))
+    : "點下方 agent 加入鏈，或維持提前交接讓系統依剩餘額度排。";
+  $("next-name").textContent = next ? next.agent.name : "尚未選出";
+  $("next-av").textContent = next ? next.agent.name.slice(0, 1) : "—";
+  $("next-model").textContent = next ? cleanModel(next.model) : "—";
+  $("next-state").className = "state " + (next ? nr.cls : "info");
+  $("next-state").textContent = next ? nr.text : "候補";
+  $("next-sub").textContent = next
+    ? next.q.label
+    : "需要另一個 coding plan，而且剩餘額度高於門檻。";
+  $("nav-risk").textContent = holder ? hr.text : "—";
+
+  const dups = samePlanIssue(views);
+  const issues = validate(views);
+  const bits = [];
+  if (dups.length) bits.push(`<strong>同計畫不能互接額度。</strong> ${esc(dups.join("、"))} 上有多支 CLI，交接不會增加這個計畫的剩餘量。`);
+  if (STATE.workflow === "preempt") {
+    bits.push("提前交接只在啟動前排棒，並以 relay 把上一棒輸出交給下一棒。單一 CLI 呼叫進行中，現有後端不會因門檻中途凍結。");
+  }
+  if (!STATE.sameOrigin) bits.push("現在是快照預覽，執行不會送到雲端。");
+  $("gap-note").innerHTML = bits.length ? bits.join("<br>") : "鏈上的計畫彼此不同，而且都高於門檻。";
+  const hint = issues.length ? issues.join(" · ") : `${workflowLabel(STATE.workflow)} · ${views.map((v) => v.agent.name).join(" → ") || "尚未選 agent"}`;
+  $("composer-hint").textContent = hint;
+  $("btn-go").disabled = STATE.busy || issues.length > 0;
+  $("btn-go").textContent = STATE.busy ? "執行中" : (STATE.workflow === "preempt" ? "依此鏈執行" : "送出");
+}
+
+function renderFoot() {
+  const observed = Object.entries(STATE.quotas).map(([name, q]) => {
+    const info = quotaInfo(name);
+    return `<div class="mini-q"><b>${esc(q.plan || name)}</b><span>${fmtPct(info.ratio)}</span></div>`;
+  }).join("");
+  const usable = autoChain().chain.length;
+  $("foot").innerHTML = `<div class="row"><span>可自動交接</span><span>${usable} 棒</span></div>${observed || `<div class="sub">沒有已回報的 coding plan。</div>`}`;
+}
+
+function renderHistory() {
+  const items = STATE.history.filter((h) => {
+    if (STATE.filter === "ok") return h.ok;
+    if (STATE.filter === "fail") return h.ok === false;
+    return true;
+  });
+  $("history").innerHTML = items.length ? items.map((h) => {
+    const idx = STATE.history.indexOf(h);
+    const title = String(h.prompt || "未命名任務").replace(/\s+/g, " ").slice(0, 42);
+    const who = (h.backends || []).slice(0, 3).join(" → ");
+    return `<div class="item-row">
+      <button type="button" class="item ${String(h.ts) === String(STATE.activeId) ? "on" : ""}" data-ts="${esc(h.ts)}">
+        <div class="t">${esc(title)}</div>
+        <div class="s">${h.ok ? "完成" : "失敗"}${who ? " · " + esc(who) : ""}</div>
+      </button>
+      <button type="button" class="item-x" data-delete-idx="${idx}" title="刪除這筆">×</button>
+    </div>`;
+  }).join("") : `<p class="sub" style="padding:8px">沒有歷史。</p>`;
+  $("nav-turns").textContent = String(STATE.history.length);
+}
+
+function renderPack() {
+  const items = [
+    ["goal", "原始目標", "要完成的結果，不是某一輪的口語摘要"],
+    ["done", "已完成步驟", "誰做了什麼、驗證過什麼"],
+    ["files", "檔案與差異", "路徑與狀態，不含憑證"],
+    ["next", "下一步", "接手者要做的動作與驗收"],
+    ["constraints", "限制", "不自動登入、不外送、不覆蓋雲端"]
+  ];
+  $("pack").innerHTML = items.map(([k, t, d]) =>
+    `<label><input type="checkbox" data-pack="${k}" ${STATE.pack[k] ? "checked" : ""}><div><b>${t}</b><span>${d}</span></div></label>`
+  ).join("");
+}
+
+function renderTurns() {
+  if (!STATE.turns.length) {
+    $("turns").innerHTML = `<p class="sub">還沒有這一輪的對話。寫下工作後，會按右側的鏈執行。</p>`;
+    return;
+  }
+  $("turns").innerHTML = STATE.turns.map((t) =>
+    `<div class="bubble ${t.role === "user" ? "user" : ""}"><div class="meta">${esc(t.meta)}</div><pre>${esc(t.text)}</pre></div>`
+  ).join("");
+}
+
+function renderSource() {
+  const live = STATE.source === "live";
+  $("src-kicker").textContent = live
+    ? "已接上本站 API · 額度為即時讀數"
+    : `預覽使用 ${SNAPSHOT.generated} 線上快照 · MiniMax 99% / GLM 本週 22.6%`;
+  $("node-label").textContent = live ? "節點在線" : "本機預覽";
+  $("live-dot").className = "dot" + (live ? "" : " warn");
+  $("threshold").value = String(Math.round(STATE.threshold * 100));
+  $("threshold-label").textContent = Math.round(STATE.threshold * 100) + "%";
+  document.querySelectorAll("#workflows button").forEach((b) => b.classList.toggle("on", b.dataset.mode === STATE.workflow));
+}
+
+function renderAll() {
+  applyAutoChain();
+  renderSource();
+  renderPick();
+  renderChain();
+  renderModels();
+  renderHolders();
+  renderFoot();
+  renderHistory();
+  renderPack();
+  renderTurns();
+  savePrefs();
+}
+
+function showPage(name) {
+  STATE.page = name;
+  document.querySelectorAll(".page").forEach((p) => p.classList.toggle("on", p.id === "page-" + name));
+  document.querySelectorAll(".nav button").forEach((b) => b.classList.toggle("on", b.dataset.page === name));
+  $("crumb").textContent = { handoff: "額度交接", thread: "對話", rules: "規則" }[name] || name;
+}
+
+function toggleAgent(id) {
+  const agent = agentById(id);
+  if (!agent) return;
+  if (!ready(agent) && !STATE.order.includes(id)) {
+    toast(agent.name + " 未安裝或不是 ready，不能自動接棒。");
+    return;
+  }
+  if (STATE.order.includes(id)) STATE.order = STATE.order.filter((x) => x !== id);
+  else STATE.order = STATE.order.concat(id);
+  if (STATE.workflow === "preempt") STATE.lockOrder = true;
+  renderAll();
+}
+
+function move(id, dir) {
+  const i = STATE.order.indexOf(id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= STATE.order.length) return;
+  const next = STATE.order.slice();
+  const [item] = next.splice(i, 1);
+  next.splice(j, 0, item);
+  STATE.order = next;
+  STATE.lockOrder = true;
+  renderAll();
+}
+
+function decoratePrompt(prompt, views) {
+  const lines = ["【額度交接】"];
+  lines.push("流程：" + workflowLabel(STATE.workflow) + "。門檻：" + fmtPct(STATE.threshold) + "。");
+  lines.push("鏈：" + views.map((v, i) => `${i + 1}.${v.agent.name} / ${cleanModel(v.model)} / ${v.plan || "額度未觀測"} ${v.q.observed ? fmtPct(v.q.ratio) : ""}`).join(" → "));
+  if (STATE.pack.goal) lines.push("必須保留原始目標。");
+  if (STATE.pack.done) lines.push("必須寫明已完成與已驗證的部分。");
+  if (STATE.pack.files) lines.push("必須列出檔案路徑與狀態，不要包含憑證。");
+  if (STATE.pack.next) lines.push("若這一棒做不完，把下一步與驗收條件寫清楚給下一棒。");
+  if (STATE.pack.constraints) lines.push("限制：不自動登入、不外送、不覆蓋未授權的遠端。");
+  lines.push("");
+  lines.push(prompt);
+  return lines.join("\n");
+}
+
+function token() {
+  return sessionStorage.getItem(TOKEN_KEY) || "";
+}
+
+async function postJson(path, payload) {
+  const headers = { "Content-Type": "application/json" };
+  const t = token();
+  if (t) headers["X-KHAVIS-Console-Token"] = t;
+  const res = await fetch(path, { method: "POST", headers, body: JSON.stringify(payload) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.ok === false) {
+    const err = new Error(data.detail || data.error || ("HTTP " + res.status));
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+async function dispatchTask() {
+  const prompt = $("prompt").value.trim();
+  if (!prompt) { toast("先寫下要完成的工作。"); return; }
+  const views = selectedViews();
+  const issues = validate(views);
+  if (issues.length) { toast(issues.join("。")); return; }
+  const payload = {
+    prompt: decoratePrompt(prompt, views),
+    agents: views.map((v) => v.agent.id),
+    agent_models: Object.fromEntries(views.map((v) => [v.agent.id, v.model])),
+    collab_mode: collabMode(STATE.workflow)
+  };
+  if (STATE.continueFrom) payload.previous_context = STATE.continueFrom;
+  if (!STATE.sameOrigin) {
+    STATE.turns.push({
+      role: "user",
+      meta: "未送出 · " + workflowLabel(STATE.workflow),
+      text: prompt + "\n\n鏈：" + views.map((v) => v.agent.name + " · " + cleanModel(v.model)).join(" → ")
+    });
+    STATE.turns.push({
+      role: "system",
+      meta: "預覽",
+      text: "這一頁不是從工作台網域打開，沒有呼叫 /api/workbench/dispatch。"
+    });
+    renderTurns();
+    toast("預覽沒有派工。");
+    return;
+  }
+  STATE.busy = true;
+  renderHolders();
+  STATE.turns.push({ role: "user", meta: workflowLabel(STATE.workflow), text: prompt });
+  renderTurns();
+  try {
+    const data = await postJson("/api/workbench/dispatch", payload);
+    const text = data.consensus || data.review_details || "已完成，但沒有成果摘要。";
+    STATE.turns.push({
+      role: "system",
+      meta: (data.collab_mode || payload.collab_mode) + " · " + ((data.results || []).length || views.length) + " 棒",
+      text: String(text).slice(0, 4000)
+    });
+    STATE.continueFrom = {
+      prompt,
+      consensus: String(text).slice(0, 3000),
+      thread: data.thread || "",
+      step: data.step || 1
+    };
+    toast("這一輪完成。下一輪會帶上交接上下文。");
+    refresh();
+  } catch (err) {
+    STATE.turns.push({ role: "system", meta: "未完成", text: String(err.message || err) });
+    toast("派工失敗：" + (err.message || "未知錯誤"));
+  } finally {
+    STATE.busy = false;
+    renderAll();
+  }
+}
+
+async function saveDefault(agentId) {
+  if (!STATE.sameOrigin) { toast("預覽不能寫入雲端預設。"); return; }
+  const agent = agentById(agentId);
+  const model = modelOf(agent);
+  if (!MODEL_RE.test(model)) { toast("模型 ID 格式無效。"); return; }
+  try {
+    await postJson("/api/workbench/models", {
+      action: "add_model",
+      agent_id: agentId,
+      model,
+      set_active: true
+    });
+    toast(agent.name + " 的預設模型已寫入。");
+  } catch (err) {
+    toast("沒有寫入：" + (err.message || "需要 Console Token"));
+  }
+}
+
+function applyData(quota, agents, history, source) {
+  STATE.quotas = quota.quotas || {};
+  STATE.pools = quota.pools || [];
+  STATE.agents = agents.agents || [];
+  STATE.history = history.history || history || [];
+  STATE.source = source;
+  for (const a of STATE.agents) {
+    if (!STATE.models[a.id]) STATE.models[a.id] = a.model || "";
+  }
+  STATE.order = STATE.order.filter((id) => agentById(id));
+  if (!STATE.order.length && STATE.workflow === "preempt" && !STATE.lockOrder) applyAutoChain();
+}
+
+async function refresh() {
+  try {
+    const [quotaRes, agentRes, histRes] = await Promise.all([
+      fetch("/api/quota", { cache: "no-store" }),
+      fetch("/api/workbench/agents", { cache: "no-store" }),
+      fetch("/api/workbench/history", { cache: "no-store" })
+    ]);
+    if (!quotaRes.ok || !agentRes.ok) throw new Error("api");
+    applyData(await quotaRes.json(), await agentRes.json(), histRes.ok ? await histRes.json() : { history: [] }, "live");
+    STATE.sameOrigin = true;
+  } catch {
+    applyData(
+      { quotas: SNAPSHOT.quotas, pools: SNAPSHOT.pools },
+      { agents: SNAPSHOT.agents },
+      { history: SNAPSHOT.history },
+      "snapshot"
+    );
+    STATE.sameOrigin = false;
+  }
+  renderAll();
+}
+
+function showThread(ts) {
+  const h = STATE.history.find((x) => String(x.ts) === String(ts));
+  if (!h) return;
+  STATE.activeId = h.ts;
+  showPage("thread");
+  $("thread-title").textContent = h.prompt || "未命名任務";
+  $("thread-meta").textContent = [h.dispatched_at, (h.backends || []).join(" → "), h.collab_mode].filter(Boolean).join(" · ");
+  const body = h.consensus || h.review_details || "沒有成果摘要。";
+  $("thread-body").innerHTML = `<div class="card"><h3>成果</h3><pre style="white-space:pre-wrap;font:13px/1.55 var(--font)">${esc(String(body).slice(0, 2000))}</pre></div>
+    <button type="button" class="ghost" id="btn-continue">以此接續</button>`;
+  $("btn-continue").onclick = () => {
+    STATE.continueFrom = {
+      prompt: h.prompt || "",
+      consensus: String(h.consensus || "").slice(0, 3000),
+      thread: h.thread || "",
+      step: h.step || 1
+    };
+    showPage("handoff");
+    $("prompt").focus();
+    toast("下一輪會帶上這一筆的成果，不會只重貼原 prompt。");
+  };
+  renderHistory();
+}
+
+function bootPrefs() {
+  const p = loadPrefs();
+  if (p.workflow) STATE.workflow = p.workflow;
+  if (Array.isArray(p.order)) STATE.order = p.order;
+  if (p.models && typeof p.models === "object") STATE.models = p.models;
+  if (p.extraOptions && typeof p.extraOptions === "object") STATE.extraOptions = p.extraOptions;
+  if (typeof p.threshold === "number") STATE.threshold = p.threshold;
+  if (typeof p.lockOrder === "boolean") STATE.lockOrder = p.lockOrder;
+  if (p.pack && typeof p.pack === "object") STATE.pack = { ...STATE.pack, ...p.pack };
+  const saved = sessionStorage.getItem(TOKEN_KEY);
+  if (saved) $("token").value = saved;
+}
+
+document.querySelectorAll(".nav button").forEach((b) => b.addEventListener("click", () => showPage(b.dataset.page)));
+document.querySelectorAll(".filters .chip").forEach((b) => b.addEventListener("click", () => {
+  STATE.filter = b.dataset.filter;
+  document.querySelectorAll(".filters .chip").forEach((x) => x.classList.toggle("on", x === b));
+  renderHistory();
+}));
+$("workflows").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  STATE.workflow = btn.dataset.mode;
+  if (STATE.workflow === "preempt") STATE.lockOrder = false;
+  else STATE.lockOrder = true;
+  renderAll();
+});
+$("agent-picks").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (btn) toggleAgent(btn.dataset.agent);
+});
+$("chain").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  if (btn.dataset.move) move(btn.dataset.id, btn.dataset.move === "up" ? -1 : 1);
+  if (btn.dataset.remove) {
+    STATE.order = STATE.order.filter((id) => id !== btn.dataset.remove);
+    STATE.lockOrder = true;
+    renderAll();
+  }
+});
+$("model-editors").addEventListener("change", (e) => {
+  const sel = e.target.closest("select[data-model-agent]");
+  if (!sel) return;
+  STATE.models[sel.dataset.modelAgent] = sel.value;
+  if (STATE.workflow === "preempt") STATE.lockOrder = false;
+  renderAll();
+});
+$("model-editors").addEventListener("click", (e) => {
+  const add = e.target.closest("[data-add-model]");
+  const save = e.target.closest("[data-save-model]");
+  if (add) {
+    const id = add.dataset.addModel;
+    const input = document.querySelector(`[data-custom-model="${id}"]`);
+    const value = (input?.value || "").trim();
+    if (!MODEL_RE.test(value)) { toast("模型 ID 只接受英數與 . _ : - / ，最長 80。"); return; }
+    STATE.extraOptions[id] = (STATE.extraOptions[id] || []).concat(value);
+    STATE.models[id] = value;
+    renderAll();
+  }
+  if (save) saveDefault(save.dataset.saveModel);
+});
+$("pack").addEventListener("change", (e) => {
+  const k = e.target.dataset.pack;
+  if (k) { STATE.pack[k] = e.target.checked; renderHolders(); savePrefs(); }
+});
+$("threshold").addEventListener("input", () => {
+  STATE.threshold = Number($("threshold").value) / 100;
+  if (STATE.workflow === "preempt") STATE.lockOrder = false;
+  renderAll();
+});
+async function deleteHistory(indexes, clear) {
+  if (!STATE.sameOrigin) {
+    toast("預覽不能刪雲端歷史。");
+    return;
+  }
+  const payload = clear
+    ? { action: "clear" }
+    : {
+        action: "delete",
+        items: indexes.map((i) => {
+          const h = STATE.history[i] || {};
+          return {
+            ts: h.ts,
+            prompt: String(h.prompt || "").slice(0, 120),
+            thread: h.thread || ""
+          };
+        })
+      };
+  try {
+    const data = await postJson("/api/workbench/history", payload);
+    if (!data.removed && data.ambiguous) {
+      toast("同一時間有多筆，沒有刪，避免刪錯。");
+      return;
+    }
+    toast(clear ? "已清除全部歷史。" : "已刪除 " + (data.removed || 0) + " 筆。");
+    if (STATE.activeId && indexes.some((i) => String(STATE.history[i]?.ts) === String(STATE.activeId))) {
+      STATE.activeId = null;
+    }
+    await refresh();
+  } catch (err) {
+    if (err.status === 401) showPage("rules");
+    toast(err.status === 401 ? "要先在規則頁輸入 Console Token。" : ("沒有刪除：" + (err.message || "未知錯誤")));
+  }
+}
+
+$("history").addEventListener("click", (e) => {
+  const del = e.target.closest("[data-delete-idx]");
+  if (del) {
+    const idx = Number(del.dataset.deleteIdx);
+    const h = STATE.history[idx];
+    const title = String(h?.prompt || "這筆").replace(/\s+/g, " ").slice(0, 40);
+    if (!window.confirm("刪除這筆歷史？\n" + title + "\n不能復原。不會刪工作區檔案。")) return;
+    deleteHistory([idx], false);
+    return;
+  }
+  const btn = e.target.closest(".item");
+  if (btn) showThread(btn.dataset.ts);
+});
+$("btn-clear-history").addEventListener("click", () => {
+  if (!STATE.history.length) { toast("沒有可刪的歷史。"); return; }
+  if (!window.confirm("清除全部派工歷史？紀錄檔裡的每一筆都會刪掉，不只畫面上這幾筆。不能復原。不會刪工作區檔案。")) return;
+  deleteHistory([], true);
+});
+$("btn-refresh").addEventListener("click", refresh);
+$("btn-new").addEventListener("click", () => {
+  showPage("handoff");
+  STATE.continueFrom = null;
+  $("prompt").value = "";
+  $("prompt").focus();
+});
+$("btn-legacy").addEventListener("click", () => {
+  const url = LIVE + "/workbench-c";
+  window.open(url, "_blank", "noopener");
+});
+$("btn-rail").addEventListener("click", () => document.body.classList.toggle("show-rail"));
+$("btn-go").addEventListener("click", dispatchTask);
+$("prompt").addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") dispatchTask();
+});
+$("token").addEventListener("change", () => {
+  const v = $("token").value.trim();
+  if (v) sessionStorage.setItem(TOKEN_KEY, v);
+  else sessionStorage.removeItem(TOKEN_KEY);
+});
+
+bootPrefs();
+renderPack();
+refresh();
+</script>
+</body>
+</html>

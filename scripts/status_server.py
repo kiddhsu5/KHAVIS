@@ -92,16 +92,19 @@ def _collect_output_files(
     orch: dict[str, Any],
     project_name: str | None = None,
 ) -> list[dict[str, str]]:
-    """彙整本輪實際產出／變更的文件（去重），供前端只呈現「成果文件」。
+    """彙整本輪實際產出／變更的文件（去重），供前端只呈現「該輪對話產出的成果文件」。
 
-    只保留路徑、狀態與大小，不含 diff 與各 Agent 的過程資料。
+    嚴格限定於本輪執行前後的新增／變更項目，絕不混入專案歷史遺留檔案。
     """
+    _ = project_name
     files: dict[str, dict[str, str]] = {}
 
     def _add(entry: Any, base_dir: str = "") -> None:
         if isinstance(entry, str):
             entry = {"path": entry}
         if not isinstance(entry, dict):
+            return
+        if str(entry.get("status") or "").strip().upper() == "D":
             return
         rel = str(entry.get("path") or "").strip().rstrip("/")
         if not rel or rel in files or len(files) >= _MAX_OUTPUT_FILES:
@@ -130,6 +133,11 @@ def _collect_output_files(
             "size": size_str,
         }
 
+    if "turn_output_files" in orch and isinstance(orch.get("turn_output_files"), list):
+        for entry in orch.get("turn_output_files") or []:
+            _add(entry, str(orch.get("shared_dir") or ""))
+        return list(files.values())
+
     for entry in orch.get("shared_changed_files") or []:
         _add(entry, str(orch.get("shared_dir") or ""))
     for res in orch.get("results") or []:
@@ -139,19 +147,6 @@ def _collect_output_files(
         for entry in res.get("changed_files") or []:
             _add(entry, cwd)
 
-    if project_name:
-        from web.workbench import discover_project_output_files  # noqa: PLC0415
-
-        for disc in discover_project_output_files(project_name, limit=_MAX_OUTPUT_FILES):
-            rel = str(disc.get("path") or "").strip()
-            if not rel or rel in files or len(files) >= _MAX_OUTPUT_FILES:
-                continue
-            files[rel] = {
-                "path": rel,
-                "full_path": str(disc.get("full_path") or rel),
-                "status": str(disc.get("status") or "A"),
-                "size": str(disc.get("size") or ""),
-            }
     return list(files.values())
 
 
@@ -736,6 +731,7 @@ class Handler(BaseHTTPRequestHandler):
             "/work",
             "/workbench-c",
             "/workbench-legacy",
+            "/workbench-relay",
             "/agents",
             "/database",
             "/api/dashboard",
@@ -793,9 +789,17 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         if path == "/api/quota":
+            from core.coding_plan_quota import refresh_coding_plan_quotas  # noqa: PLC0415
+            from core.env import load_env  # noqa: PLC0415
             from core.quota_tracker import get_quota_tracker  # noqa: PLC0415
 
-            snaps = get_quota_tracker().all_snapshots()
+            load_env(PROJECT_ROOT / ".env")
+            tracker = get_quota_tracker()
+            try:
+                refresh_coding_plan_quotas(tracker)
+            except Exception:  # noqa: BLE001 - quota probe must not take down the billboard
+                pass
+            snaps = tracker.all_snapshots()
             payload = {"quotas": snaps, "pools": rows, "generated_at": time.time()}
             self._send(
                 200,
@@ -805,26 +809,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/workbench/history":
             from bot import history as bot_history  # noqa: PLC0415
-            from web.workbench import discover_project_output_files  # noqa: PLC0415
 
             raw_items = bot_history.tail(200)
             formatted: list[dict[str, object]] = []
-            proj_outputs_cache: dict[str, list[dict[str, str]]] = {}
-
-            def _fallback_outputs(proj_name: str) -> list[dict[str, str]]:
-                key = proj_name or "shared-app"
-                if key not in proj_outputs_cache:
-                    proj_outputs_cache[key] = [
-                        {
-                            "path": str(f.get("path") or ""),
-                            "full_path": str(f.get("full_path") or f.get("path") or ""),
-                            "status": str(f.get("status") or "A"),
-                            "size": str(f.get("size") or ""),
-                        }
-                        for f in discover_project_output_files(key, limit=_MAX_OUTPUT_FILES)
-                        if f.get("path")
-                    ]
-                return proj_outputs_cache[key]
 
             for item in raw_items:
                 if not isinstance(item, dict):
@@ -878,8 +865,6 @@ class Handler(BaseHTTPRequestHandler):
                     and f.get("path")
                     and not str(f.get("path") or "").endswith("/")
                 ][:_MAX_OUTPUT_FILES]
-                if not raw_out_files and bool(item.get("ok", True)):
-                    raw_out_files = _fallback_outputs(proj_str)[:_MAX_OUTPUT_FILES]
                 formatted.append(
                     {
                         "prompt": _redact(prompt_text),
@@ -923,8 +908,13 @@ class Handler(BaseHTTPRequestHandler):
                 "application/json; charset=utf-8",
             )
             return
-        if path in ("/workbench", "/work", "/workbench-c", "/agents", "/database"):
-            # 現行介面 = 選項 C（任務卡片流）。/agents 與 /database 為獨立子頁面路由。
+        if path in ("/workbench", "/work", "/workbench-relay"):
+            from web.relay_workbench import render_relay_workbench_html  # noqa: PLC0415
+
+            self._send(200, render_relay_workbench_html().encode(), "text/html; charset=utf-8")
+            return
+        if path in ("/workbench-c", "/agents", "/database"):
+            # 改版前的任務卡片流，保留作為回退。/agents 與 /database 仍走舊頁。
             from web.workbench_c import render_workbench_html_c  # noqa: PLC0415
 
             self._send(200, render_workbench_html_c().encode(), "text/html; charset=utf-8")
@@ -1085,6 +1075,36 @@ class Handler(BaseHTTPRequestHandler):
                 self._handle_manus_post(path)
             return
         if path.startswith("/api/workbench/") and not self._require_workbench_write_token():
+            return
+        if path == "/api/workbench/history":
+            payload = self._read_json_payload()
+            if payload is None:
+                return
+            from bot import history as bot_history  # noqa: PLC0415
+
+            action = str(payload.get("action") or "delete").strip().lower()
+            try:
+                if action == "clear":
+                    result = bot_history.delete_events(clear=True)
+                elif action == "delete":
+                    items = payload.get("items")
+                    if not isinstance(items, list):
+                        raise ValueError("items 必須是陣列")
+                    result = bot_history.delete_events(items)
+                else:
+                    raise ValueError("未知動作")
+            except ValueError as exc:
+                self._send(
+                    400,
+                    json.dumps({"ok": False, "detail": str(exc)}, ensure_ascii=False).encode(),
+                    "application/json; charset=utf-8",
+                )
+                return
+            self._send(
+                200,
+                json.dumps({"ok": True, **result}, ensure_ascii=False).encode(),
+                "application/json; charset=utf-8",
+            )
             return
         if path == "/api/workbench/models":
             content_len = int(self.headers.get("Content-Length", 0))
@@ -1673,7 +1693,7 @@ class _Listener(ThreadingHTTPServer):
     On a wildcard bind that resolves quickly, but on a concrete unicast
     address with no PTR record it blocks on the resolver timeout. Measured on
     the deploy host: **10.014 s** between "listening on http://0.0.0.0:80" and
-    "listening on https://172.17.0.106:443" — the :443 fallback address after
+    "listening on https://10.0.0.7:443" — the :443 fallback address after
     ``tailscaled`` claimed ``*:443``.
 
     That would only be a slow start if ``main()`` did not build every listener

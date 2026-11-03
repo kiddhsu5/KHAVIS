@@ -10,11 +10,11 @@ KHAVIS 整合多個 CLI Agent 與可自行部署的 LLM 路由。你可以共用
 [![Project site](https://img.shields.io/badge/Project_Site-khavis.khorus.tech-0EA5E9)](https://khavis.khorus.tech)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[English README](README.md) · 專案網站：[khavis.khorus.tech](https://khavis.khorus.tech) · 選用工作台路徑：[khavis.khorus.tech/workbench](https://khavis.khorus.tech/workbench)
+[English README](README.md) · 專案網站：[khavis.khorus.tech](https://khavis.khorus.tech) · 工作台路徑：[khavis.khorus.tech/workbench-c](https://khavis.khorus.tech/workbench-c)（任務工作台）· [khavis.khorus.tech/workbench](https://khavis.khorus.tech/workbench)（額度交接台）
 
 ## 工作台：從任務走到可檢查的交付
 
-工作台中央保留任務對話。Agent、服務商與模型設定放在獨立的 `/agents` 頁；文件庫位於 `/database`。模型 ID 與可選 thinking 模式優先使用已連線供應商回傳的資料；沒有能力 metadata 時，不把猜測的模式寫成已支援。
+兩個介面並行：`/workbench` 是**額度交接台**（各 pool 的即時額度水位），`/workbench-c` 是**任務工作台**（對話串、每輪產出、Agent 名單）。Agent、服務商與模型設定放在獨立的 `/agents` 頁；文件庫位於 `/database`。模型 ID 與可選 thinking 模式優先使用已連線供應商回傳的資料；沒有能力 metadata 時，不把猜測的模式寫成已支援。
 
 文件庫會按主題歸檔，保留已記錄的來源任務，並提供格式篩選、預覽與下載。分類採本機規則與受限內容樣本，不搬動文件、不呼叫付費模型，也不是完整全文或向量知識庫。格式與邊界見[文件庫與設定說明](docs/CONFIGURATION.md)。
 

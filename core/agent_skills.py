@@ -320,9 +320,9 @@ def execute_skill(call_obj: dict[str, Any], cwd: str | None = None) -> str:
             check=False,
         )
         out = "\n".join(p for p in [(proc.stdout or "").strip(), (proc.stderr or "").strip()] if p)
-        if proc.returncode != 0 and "No module named pytest" in out:
+        if proc.returncode != 0 and ("No module named pytest" in out or "NO TESTS RAN" in out or proc.returncode == 5):
             proc = subprocess.run(
-                "python3 -m unittest discover -v",
+                "python3 -m unittest discover -s tests -v",
                 shell=True,
                 cwd=str(work_dir),
                 capture_output=True,

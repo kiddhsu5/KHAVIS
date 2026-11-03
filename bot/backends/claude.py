@@ -174,6 +174,16 @@ class ClaudeBackend(Backend):
                 model=self._model,
             )
 
+        payload_error = _claude_json_error(stdout)
+        if payload_error:
+            return BackendResult(
+                backend="claude",
+                ok=False,
+                error=payload_error,
+                latency_ms=latency_ms,
+                model=self._model,
+            )
+
         text, model, tok_in, tok_out = _parse_claude_json(stdout, envelope.prompt)
         return BackendResult(
             backend="claude",
@@ -212,6 +222,31 @@ def _juapi_anthropic_base_url() -> str:
         or "https://www.juapi.net"
     ).rstrip("/")
     return base[:-3] if base.endswith("/v1") else base
+
+
+def _claude_json_error(raw: str) -> str:
+    """Extract a human-readable error from Claude CLI JSON output.
+
+    The Claude CLI can exit 0 while reporting a failure in the payload
+    (``is_error: true``). Treating that as success produces a silent
+    empty result, so callers must check this first.
+    """
+    text = (raw or "").strip()
+    if not text:
+        return ""
+    try:
+        payload = json.loads(text)
+    except (TypeError, ValueError):
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    if not payload.get("is_error"):
+        return ""
+    message = str(payload.get("result") or payload.get("error") or "").strip()
+    status = payload.get("api_error_status")
+    if status:
+        return f"HTTP {status}: {message}" if message else f"HTTP {status}"
+    return message or "claude reported an error"
 
 
 def _parse_claude_json(raw: str, prompt: str) -> tuple[str, str, int, int]:

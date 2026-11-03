@@ -7,7 +7,8 @@ import json
 
 import pytest
 
-from bot.backends.claude import _parse_claude_json
+from bot.backends.claude import _claude_json_error, _parse_claude_json
+from bot.backends.codex import _parse_codex_output
 from bot.models import DispatchEnvelope
 
 
@@ -57,6 +58,44 @@ class TestParseClaudeJson:
         payload = {"result": "x", "usage": {"input": 7, "output": 9}}
         _, _, tok_in, tok_out = _parse_claude_json(json.dumps(payload), "")
         assert (tok_in, tok_out) == (7, 9)
+
+    def test_is_error_detected(self):
+        err_payload = {
+            "type": "result",
+            "is_error": True,
+            "api_error_status": 404,
+            "result": "There's an issue with the selected model.",
+        }
+        assert "issue with the selected model" in _claude_json_error(json.dumps(err_payload))
+        assert _claude_json_error(json.dumps({"is_error": False, "result": "OK"})) == ""
+
+    def test_codex_jsonl_agent_message_parsed(self):
+        jsonl = "\n".join(
+            [
+                json.dumps({"type": "turn.started"}),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {"id": "item_1", "type": "reasoning", "text": "thinking"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "item.completed",
+                        "item": {"id": "item_2", "type": "agent_message", "text": "乾淨回覆"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "turn.completed",
+                        "usage": {"input_tokens": 120, "output_tokens": 15},
+                    }
+                ),
+            ]
+        )
+        text, _m, tin, tout = _parse_codex_output(jsonl)
+        assert text == "乾淨回覆"
+        assert (tin, tout) == (120, 15)
 
 
 class TestParseClaudeJsonArray:
