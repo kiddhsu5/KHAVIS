@@ -60,4 +60,4 @@
 - 離線 mock 故障流程演練（`examples/zero_quota_demo.py`，不需 key、網路或 Ollama）。
 - 單元測試涵蓋路由、供應商能力探索、模型勾選持久化、附件防護、工作台 API 與前端契約。
 
-[0.5.0]: https://github.com/kiddhsu5/KHAVIS/releases/tag/v0.5.0
+[0.5.0]: https://github.com/kiddhsu5/KHAVIS/releases/tag/0.5.0
