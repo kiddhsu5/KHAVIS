@@ -5,13 +5,10 @@ layer (``core/collab_orchestrator.py`` + ``bot/backends/*``) so users can run
 collaborative agent teams entirely from the terminal, without the Web
 Workbench.
 
-Subcommands added:
+Subcommands:
 
     khavis run "task"                       one-shot multi-agent dispatch
-    khavis run "task" --agents claude,codex pick agents
-    khavis run "task" --mode relay          collaboration mode
-    khavis team                             interactive REPL (multi-turn)
-    khavis agents                           list available agent backends
+    khavis team                             interactive REPL (Claude Code-style)
 
 Licensed under the Apache License, Version 2.0.
 """
@@ -40,13 +37,22 @@ from bot.backends import (
 from bot.dispatch import DispatchRouter
 from bot.models import BackendName
 
+from .cli_ui import (
+    C,
+    ALL_AGENT_IDS,
+    VALID_MODES,
+    load_config,
+    save_config,
+    print_banner,
+    print_status_bar,
+    open_settings,
+)
 from .env import load_env
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _build_backends(agent_models: dict[str, str] | None = None) -> dict[BackendName, Any]:
-    """Assemble the standard backend dict, same as the web dispatch handler."""
     models = agent_models or {}
     return {
         "claude": ClaudeBackend(model=str(models.get("claude") or "").strip()),
@@ -60,14 +66,10 @@ def _build_backends(agent_models: dict[str, str] | None = None) -> dict[BackendN
 
 
 def _available_agents(backends: dict[str, Any]) -> list[dict[str, str]]:
-    """Probe which agent CLIs are installed (best-effort, no network)."""
     rows = []
     for aid, backend in backends.items():
         if aid == "khavis":
             rows.append({"id": aid, "name": "K.A.V.I.S.", "status": "ready", "note": "LangGraph 7-role"})
-            continue
-        if aid == "kavis-tencent":
-            rows.append({"id": aid, "name": "K.A.V.I.S. (remote)", "status": "config", "note": "adapter"})
             continue
         binary = getattr(backend, "_binary", aid)
         found = shutil.which(binary)
@@ -77,7 +79,7 @@ def _available_agents(backends: dict[str, Any]) -> list[dict[str, str]]:
             "id": aid,
             "name": type(backend).__name__.replace("Backend", ""),
             "status": "ready" if found else "not_installed",
-            "note": found or f"npm/apt install {binary}",
+            "note": found or f"install {binary}",
         })
     return rows
 
@@ -90,7 +92,6 @@ async def _run_dispatch(
     agent_models: dict[str, str] | None = None,
     previous_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Run one collaborative dispatch in-process."""
     from core.collab_orchestrator import run_collaborative_workflow  # noqa: PLC0415
     from core.workspace_manager import prepare_agent_cwd  # noqa: PLC0415
 
@@ -120,50 +121,57 @@ async def _run_dispatch(
     return orch
 
 
-def _print_result(orch: dict[str, Any]) -> None:
-    """Pretty-print one dispatch result to the terminal."""
+def _print_result(orch: dict[str, Any], max_lines: int = 50, show_timing: bool = True) -> None:
     ok = any(r.get("ok") for r in orch.get("results", []))
-    icon = "✅" if ok else "❌"
+    icon = C.green("✅") if ok else C.red("❌")
     mode = orch.get("collab_mode", "?")
     src = orch.get("consensus_source", "?")
-    latency = orch.get("latency_ms", 0)
-    print(f"\n{icon}  {mode} · {src} · {latency}ms")
-    print("─" * 60)
+    timing = f" · {orch['latency_ms']}ms" if show_timing else ""
+    print(f"\n{icon}  {C.bold(mode)} · {C.dim(src)}{C.dim(timing)}")
+    print(C.dim("─" * 60))
 
     consensus = str(orch.get("consensus") or "")
     if consensus:
-        print(consensus[:3000])
+        lines = consensus.split("\n")
+        shown = lines[:max_lines]
+        print("\n".join(shown))
+        if len(lines) > max_lines:
+            print(C.dim(f"…（共 {len(lines)} 行，顯示前 {max_lines} 行）"))
     else:
         for r in orch.get("results", []):
-            status = "✓" if r.get("ok") else "✗"
+            status = C.green("✓") if r.get("ok") else C.red("✗")
             backend = r.get("backend", "?")
             text = (r.get("text") or r.get("error") or "")[:400]
-            print(f"  {status} [{backend}] {text}")
-    print("─" * 60)
+            print(f"  {status} {C.bold('[' + backend + ']')} {text}")
+    print(C.dim("─" * 60))
 
     files = orch.get("shared_changed_files") or []
     if files:
-        print("📁 產出檔案:")
+        print(f"{C.bold('📁 產出檔案:')}")
         for f in files[:10]:
-            print(f"   {f}")
+            print(f"   {C.cyan(str(f))}")
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
     load_env(PROJECT_ROOT / ".env")
-    prompt = args.prompt
-    agents = [a.strip() for a in (args.agents or "khavis").split(",") if a.strip()]
-    mode = args.mode
+    cfg = load_config()
+    if args.agents != "khavis":
+        cfg["agents"] = [a.strip() for a in args.agents.split(",") if a.strip()]
+    if args.mode != "auto_loop":
+        cfg["mode"] = args.mode
+    agents = cfg["agents"]
+    mode = cfg["mode"]
 
     backends = _build_backends()
     for aid in agents:
         if aid not in backends:
-            print(f"❌ 未知 Agent: {aid}", file=sys.stderr)
+            print(f"{C.red('❌ 未知 Agent: ' + aid)}", file=sys.stderr)
             _list_agents(backends)
             return 1
 
-    print(f"🚀 {mode} · {' + '.join(agents)}", file=sys.stderr)
-    orch = asyncio.run(_run_dispatch(prompt, agents, mode))
-    _print_result(orch)
+    print(f"{C.cyan('🚀')} {mode} · {' + '.join(agents)}", file=sys.stderr)
+    orch = asyncio.run(_run_dispatch(args.prompt, agents, mode))
+    _print_result(orch, max_lines=cfg.get("max_output_lines", 50), show_timing=cfg.get("show_timing", True))
     return 0 if any(r.get("ok") for r in orch.get("results", [])) else 1
 
 
@@ -175,58 +183,113 @@ def _cmd_agents(args: argparse.Namespace) -> int:
 
 def _list_agents(backends: dict[str, Any]) -> None:
     rows = _available_agents(backends)
-    print(f"\n{'ID':<16} {'Backend':<18} {'Status':<14} Note")
-    print("─" * 60)
+    header_id = C.bold("ID".ljust(16))
+    header_name = C.bold("Backend".ljust(18))
+    header_status = C.bold("Status".ljust(16))
+    print(f"\n  {header_id}{header_name}{header_status}Note")
+    print(f"  {C.dim('─' * 60)}")
     for r in rows:
-        icon = "✅" if r["status"] == "ready" else "○"
-        print(f"{icon} {r['id']:<14} {r['name']:<18} {r['status']:<14} {r['note']}")
+        is_ready = r["status"] == "ready"
+        icon = C.green("✅") if is_ready else C.dim("○")
+        aid = C.cyan(r["id"].ljust(14))
+        name = r["name"].ljust(18)
+        stat = r["status"].ljust(16)
+        print(f"  {icon} {aid} {name} {stat} {C.dim(r['note'])}")
 
 
 def _cmd_team(args: argparse.Namespace) -> int:
-    """Interactive multi-turn REPL."""
+    """Interactive multi-turn REPL with Claude Code-style welcome + settings."""
     load_env(PROJECT_ROOT / ".env")
     backends = _build_backends()
-    agents = [a.strip() for a in (args.agents or "khavis").split(",") if a.strip()]
-    mode = args.mode
+    cfg = load_config()
+
+    # CLI flags override persisted config
+    if args.agents != "khavis":
+        cfg["agents"] = [a.strip() for a in args.agents.split(",") if a.strip()]
+    if args.mode != "auto_loop":
+        cfg["mode"] = args.mode
+
+    agents = cfg["agents"]
+    mode = cfg["mode"]
     prev_ctx: dict[str, Any] | None = None
     turn = 0
+    max_lines = cfg.get("max_output_lines", 50)
+    show_timing = cfg.get("show_timing", True)
 
-    print("K.H.A.V.I.S. Team — 多 Agent 協同終端機")
-    print(f"Agent: {' + '.join(agents)}  模式: {mode}")
-    print("輸入任務開始 · /quit 離開 · /agents 查看 · /mode <mode> 切換 · /new 開新對話\n")
+    agent_rows = _available_agents(backends)
+    print_banner(cfg, agent_rows)
 
     while True:
+        print_status_bar(cfg, turn)
         try:
-            prompt = input("📝 > ").strip()
+            prompt = input(f"  {C.magenta('▸')} ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n再见。")
+            print(f"\n  {C.dim('再见。')}")
             return 0
+
         if not prompt:
             continue
+
+        # ── Slash commands ─────────────────────────────────────
         if prompt in ("/quit", "/exit", "/q"):
-            print("再见。")
+            print(f"  {C.dim('再见。')}")
             return 0
+        if prompt in ("/config", "/settings"):
+            cfg = open_settings(cfg)
+            agents = cfg["agents"]
+            mode = cfg["mode"]
+            max_lines = cfg.get("max_output_lines", 50)
+            show_timing = cfg.get("show_timing", True)
+            continue
         if prompt == "/agents":
             _list_agents(backends)
             continue
         if prompt == "/new":
             prev_ctx = None
             turn = 0
-            print("── 新對話 ──\n")
+            print(f"  {C.dim('── 新對話 ──')}\n")
             continue
-        if prompt.startswith("/mode "):
-            new_mode = prompt[6:].strip().lower()
-            if new_mode in ("auto_loop", "relay", "critique", "parallel"):
-                mode = new_mode
-                print(f"模式切換為 {mode}\n")
+        if prompt == "/save":
+            save_config(cfg)
+            print(f"  {C.green('✅ 設定已儲存')}\n")
+            continue
+        if prompt.startswith("/mode"):
+            parts = prompt.split(None, 1)
+            if len(parts) > 1 and parts[1].strip().lower() in VALID_MODES:
+                mode = parts[1].strip().lower()
+                cfg["mode"] = mode
+                print(f"  {C.green('模式 → ' + mode)}\n")
             else:
-                print("可用模式: auto_loop / relay / critique / parallel\n")
+                print(f"  {C.dim('可用: ' + ' / '.join(VALID_MODES))}\n")
+            continue
+        if prompt.startswith("/agents "):
+            ids = [a.strip() for a in prompt[8:].split(",") if a.strip() and a.strip() in ALL_AGENT_IDS]
+            if ids:
+                agents = ids
+                cfg["agents"] = ids
+                print(f"  {C.green('Agent → ' + ', '.join(ids))}\n")
+            continue
+        if prompt == "/help":
+            print(f"""
+  {C.yellow('/config')}    開啟設定選單（Agent、模式、顯示選項）
+  {C.yellow('/agents')}    列出 Agent 狀態
+  {C.yellow('/agents A,B')} 切換 Agent
+  {C.yellow('/mode M')}    切換模式（{'/'.join(VALID_MODES)}）
+  {C.yellow('/new')}       開始新對話
+  {C.yellow('/save')}      儲存目前設定
+  {C.yellow('/quit')}      離開
+""")
             continue
 
+        # ── Dispatch ───────────────────────────────────────────
         turn += 1
-        print(f"\n▶ 第 {turn} 輪 · {mode} · {' + '.join(agents)}")
-        orch = asyncio.run(_run_dispatch(prompt, agents, mode, previous_context=prev_ctx))
-        _print_result(orch)
+        print(f"\n  {C.cyan('▶')} 第 {turn} 輪 · {mode} · {' + '.join(agents)}")
+        try:
+            orch = asyncio.run(_run_dispatch(prompt, agents, mode, previous_context=prev_ctx))
+        except Exception as exc:  # noqa: BLE001
+            print(f"  {C.red('❌ ' + str(exc)[:200])}\n")
+            continue
+        _print_result(orch, max_lines=max_lines, show_timing=show_timing)
 
         consensus = str(orch.get("consensus") or "")
         prev_ctx = {
@@ -239,20 +302,20 @@ def _cmd_team(args: argparse.Namespace) -> int:
 
 
 def register_run_subcommands(sub: argparse.ArgumentParser) -> None:
-    """Attach run / team / agents subcommands to the existing CLI parser."""
     p_run = sub.add_parser("run", help="one-shot multi-agent collaborative dispatch")
     p_run.add_argument("prompt", help="the task to execute")
-    p_run.add_argument("--agents", "-a", default="khavis", help="comma-separated agent IDs (default: khavis)")
+    p_run.add_argument("--agents", "-a", default="khavis", help="comma-separated agent IDs (default from config)")
     p_run.add_argument("--mode", "-m", default="auto_loop",
-                       choices=["auto_loop", "relay", "critique", "parallel"],
-                       help="collaboration mode (default: auto_loop)")
+                       choices=VALID_MODES, help="collaboration mode (default from config)")
     p_run.set_defaults(func=_cmd_run)
 
-    p_team = sub.add_parser("team", help="interactive multi-turn collaborative REPL")
+    p_team = sub.add_parser("team", help="interactive multi-turn REPL (Claude Code-style welcome)")
     p_team.add_argument("--agents", "-a", default="khavis", help="comma-separated agent IDs")
-    p_team.add_argument("--mode", "-m", default="auto_loop",
-                        choices=["auto_loop", "relay", "critique", "parallel"])
+    p_team.add_argument("--mode", "-m", default="auto_loop", choices=VALID_MODES)
     p_team.set_defaults(func=_cmd_team)
 
     p_ag = sub.add_parser("agents", help="list available agent backends and their status")
     p_ag.set_defaults(func=_cmd_agents)
+
+
+import argparse  # noqa: E402  (needed for type hint in register function)
