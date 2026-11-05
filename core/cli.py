@@ -608,6 +608,11 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--port", type=int, default=None)
     p_serve.set_defaults(func=_cmd_serve)
 
+    # Multi-agent collaborative subcommands (run / team / agents)
+    from core.cli_run import register_run_subcommands  # noqa: PLC0415
+
+    register_run_subcommands(sub)
+
     p_health = sub.add_parser("health", help="probe pools and show circuit-breaker / quota state")
     p_health.add_argument(
         "--refresh",
