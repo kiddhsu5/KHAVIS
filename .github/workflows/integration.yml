@@ -3,14 +3,11 @@ name: khavis-integration
 on:
   workflow_dispatch:
     inputs:
-      providers:
-        description: "Comma-separated providers to test (openai,gemini,ollama,...)"
+      pool:
+        description: "Optional specific pool name to test (leave blank for all configured)"
         required: false
-        default: "openai"
+        default: ""
         type: string
-  schedule:
-    # Weekly run on Sunday 02:00 UTC
-    - cron: "0 2 * * 0"
 
 permissions:
   contents: read
@@ -59,11 +56,16 @@ jobs:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           OLLAMA_HOST: ${{ secrets.OLLAMA_HOST }}
         run: |
+          if [ -z "${OPENAI_API_KEY}${GEMINI_API_KEY}${GOOGLE_API_KEY}${OPENROUTER_API_KEY}${NVIDIA_API_KEY}${ZHIPU_API_KEY}${VOLCANO_API_KEY}${DEEPSEEK_API_KEY}${MINIMAX_API_KEY}" ]; then
+            echo "No live provider API secrets configured in repository; skipping live integration run."
+            exit 0
+          fi
           if [ -f scripts/integration_test.py ]; then
-            python scripts/integration_test.py \
-              --providers "$KHAVIS_PROVIDERS" \
-              --output junit-xml=/tmp/integration.junit.xml \
-              --output json=/tmp/integration.json
+            ARGS=(--verbose --no-color)
+            if [ -n "${{ github.event.inputs.pool }}" ]; then
+              ARGS+=(--only "${{ github.event.inputs.pool }}")
+            fi
+            python scripts/integration_test.py "${ARGS[@]}"
           else
             echo "scripts/integration_test.py not found; skipping live run."
             exit 0

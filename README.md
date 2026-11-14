@@ -6,7 +6,7 @@ KHAVIS integrates multiple CLI agents with a self-hostable LLM router. Share a p
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org)
-[![Status](https://img.shields.io/badge/status-v0.5.0-emerald.svg)](#roadmap)
+[![Status](https://img.shields.io/badge/status-v0.6.0-emerald.svg)](#roadmap)
 [![Project site](https://img.shields.io/badge/Project_Site-khavis.khorus.tech-0EA5E9)](https://khavis.khorus.tech)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -50,7 +50,7 @@ The installer checks the environment (Python ≥ 3.11), clones the repo, builds 
 # macOS / Linux (bash)
 bash deploy/install.sh
 
-# Include the K.A.V.I.S. remote dispatch bridge (Unix + hermes required)
+# Optional localhost OpenAI-compatible K.A.V.I.S. bridge
 bash deploy/install.sh --with-adapter
 
 # Windows (PowerShell, from the repo root)

@@ -16,9 +16,8 @@
                                         └─ 供應商 API pools（.env keys）
 ```
 
-- **K.A.V.I.S.** 是項目內建的唯一協同 agent：對話中勾選即調度本地 LangGraph
-  團隊（Planner/Coder×2/Debater/Critic/Verifier/Learner）；裝了
-  `kavis-adapter` 後，遠端 openclaw × hermes 節點是同一個 agent 的雲端執行點。
+- **K.A.V.I.S.** 是選用的協同代理整合層：對話中勾選即調度本地 LangGraph
+  團隊（Planner/Coder×2/Debater/Critic/Verifier/Learner），或透過 OpenAI 相容端點串接獨立部署的 K.A.V.I.S. Hub（`KAVIS_HUB_URL`）／選用本機 `kavis-adapter` 橋接器。
 
 ## 一鍵安裝與部署
 

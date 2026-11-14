@@ -123,7 +123,7 @@ def render_landing_html(
              style="background:linear-gradient(135deg,#7C9BB5,#8FA894);color:#0B0D12">K</div>
         <div>
           <span class="font-extrabold tracking-tight text-base text-white">KHAVIS</span>
-          <span class="hidden sm:inline-block ml-2 text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">v0.5.0 Open Core</span>
+          <span class="hidden sm:inline-block ml-2 text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">v0.6.0 · Apache 2.0</span>
         </div>
       </a>
 
@@ -346,48 +346,48 @@ def render_landing_html(
       </div>
     </section>
 
-    <!-- 30 秒快速自託管部署 & 商業合作 (Open Core) -->
-    <section id="enterprise" class="max-w-6xl mx-auto px-4 sm:px-6 py-14 border-t border-white/[0.07]">
+    <!-- 30 秒快速自託管部署 & 社群參與 -->
+    <section id="quickstart-oss" class="max-w-6xl mx-auto px-4 sm:px-6 py-14 border-t border-white/[0.07]">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <!-- 開源快速啟動 -->
         <div class="lg:col-span-7 glass-card rounded-2xl p-6 sm:p-7 space-y-4">
           <div class="flex items-center justify-between">
             <span class="text-xs font-mono text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20">
-              Apache 2.0 · Self-Hosted BYOK
+              Apache 2.0 · 100% Self-Hosted BYOK
             </span>
             <a href="https://github.com/kiddhsu5/KHAVIS" target="_blank" rel="noopener" class="text-xs font-mono text-sky-300 hover:underline">
               github.com/kiddhsu5/KHAVIS &rarr;
             </a>
           </div>
-          <h3 class="text-lg font-bold text-white">個人與開源社群版：30 秒一鍵啟動</h3>
+          <h3 class="text-lg font-bold text-white">自託管開源版：30 秒一鍵啟動</h3>
           <pre class="rounded-xl bg-ink-950/90 border border-white/10 p-4 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed"><code>git clone https://github.com/kiddhsu5/KHAVIS.git
 cd KHAVIS
-bash scripts/quick_setup_wizard.sh
-khavis serve   # 開啟 http://localhost:8080/workbench</code></pre>
+bash deploy/install.sh
+khavis doctor   # 檢查 pool 與健康狀態</code></pre>
         </div>
 
-        <!-- 企業與團隊商業版 -->
+        <!-- K.A.V.I.S. 整合與社群 -->
         <div class="lg:col-span-5 glass-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between space-y-4 border-sky-500/25">
           <div class="space-y-2.5">
             <span class="text-xs font-mono text-sky-300 bg-sky-500/10 px-2.5 py-1 rounded border border-sky-500/20">
-              🏢 Enterprise & Team Edition
+              🔌 Optional K.A.V.I.S. Runtime &amp; Community
             </span>
-            <h3 class="text-lg font-bold text-white">企業研發中台與團隊私有化部署</h3>
+            <h3 class="text-lg font-bold text-white">開放擴充：獨立 Agent 引擎與社群回饋</h3>
             <ul class="text-xs text-slate-300 space-y-2 leading-relaxed pt-1">
-              <li><i class="fas fa-check text-emerald-400 mr-2"></i><strong>團隊共享 Coding Plan 配額池</strong>與多成員 RBAC 權限管理</li>
-              <li><i class="fas fa-check text-emerald-400 mr-2"></i><strong>企業內網 / VPC 私有化部署</strong>與內部自訂 CLI 工具鏈對接</li>
-              <li><i class="fas fa-check text-emerald-400 mr-2"></i><strong>全團隊 Prompt 與 Git Worktree 審計日誌</strong>與合規報表</li>
+              <li><i class="fas fa-check text-emerald-400 mr-2"></i><strong>完全免費 BYOK</strong>：自備 API Key 或 Coding Plan 即可運行全部功能</li>
+              <li><i class="fas fa-check text-emerald-400 mr-2"></i><strong>選用 K.A.V.I.S. 執行層</strong>：支援內建 LangGraph 團隊或外部 OpenAI 相容 Hub（<code class="text-sky-300">KAVIS_HUB_URL</code>）</li>
+              <li><i class="fas fa-check text-emerald-400 mr-2"></i><strong>外掛式 Provider 架構</strong>：以單一 Python 檔案擴充新的模型服務商</li>
             </ul>
           </div>
           <div class="pt-2 flex flex-wrap gap-2">
-            <a href="mailto:security@kiddhsu.taipei?subject=KHAVIS%20Enterprise%20Inquiry"
+            <a href="https://github.com/kiddhsu5/KHAVIS/discussions" target="_blank" rel="noopener"
                class="px-4 py-2 rounded-xl text-xs font-bold text-ink-950 transition"
                style="background:linear-gradient(135deg,#7C9BB5,#8FA894)">
-              📩 聯繫商業合作 / 私有化部署
+              💬 前往 GitHub Discussions
             </a>
-            <a href="https://github.com/kiddhsu5/KHAVIS/discussions" target="_blank" rel="noopener"
+            <a href="https://github.com/kiddhsu5/KHAVIS/issues" target="_blank" rel="noopener"
                class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-slate-200 transition">
-              社群討論區
+              🐛 回報問題 / 許願功能
             </a>
           </div>
         </div>

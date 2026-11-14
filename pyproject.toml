@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "khavis"
-version = "0.5.0"
+version = "0.6.0"
 description = "A plugin-based router for multiple LLM providers with hot-reloadable config and capability-aware dispatch."
 readme = "README.md"
 requires-python = ">=3.11"

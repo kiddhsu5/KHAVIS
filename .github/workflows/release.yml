@@ -85,7 +85,7 @@ jobs:
         id: changelog
         run: |
           if [ -f CHANGELOG.md ]; then
-            awk '/^## /{flag=1; next} flag' CHANGELOG.md | sed '/^$/q' > /tmp/release_notes.md
+            awk '/^## /{if (flag) exit; flag=1; print; next} flag' CHANGELOG.md > /tmp/release_notes.md
             echo "notes<<EOF" >> $GITHUB_OUTPUT
             cat /tmp/release_notes.md >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT

@@ -23,7 +23,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 
 # Minimal starter configs written by ``khavis init``. Pools here are the
 # BYOK ones; keys come from .env / process env. Anything missing a key is

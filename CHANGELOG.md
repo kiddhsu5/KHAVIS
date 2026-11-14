@@ -2,17 +2,20 @@
 
 本專案的版本與功能狀態以此檔案、實作與測試為準。語意化版本：`MAJOR.MINOR.PATCH`。
 
-## [Unreleased]
+## [0.6.0] — 2026-11-14
 
-### 額度交接台與工作台分流
+### 額度交接台、Landing 與協作終端
 
-- `/workbench`：額度交接台（額度即時讀數），`/workbench-c`：任務工作台（對話串與產出）。
+- 宣傳與控制台入口頁（`web/landing.py`）：提供專案總覽、Token 登入與即時節點健康矩陣。
+- `/workbench`：額度交接台（額度即時讀數與交接順序編排），`/workbench-c`：任務工作台（對話串與產出）。
+- 終端機協同工具（`khavis team` / `khavis run` / `khavis agents`）：多 Agent 接力與工作區隔離。
 - 文件庫主題分類（`core/document_topics.py`）：有界且確定性的關鍵詞分類，不執行文件內容。
 - 文件庫唯讀索引（`core/document_library.py`）與 `docs/DOCUMENT_LIBRARY.md`。
 - Coding Plan 額度探測（`core/coding_plan_quota.py`）：額度來源新增 coding-plan 類型，金鑰只留環境變數、不寫日誌。
-- 派工與歷史強化：產出檔判定、歷史刪除與 prompt 比對。
+- 派工與歷史強化：產出檔判定、base36 對話串歸併、歷史刪除與 prompt 比對。
 - Agentic CLI shim（`deploy/cli_shim.py`）：雲端主機缺少原生 CLI 時提供可執行替代。
 - 修正：`claude`/`codex` CLI 以 exit 0 回報錯誤或事件流時不再被當成成功結果。
+- 開源合規與 CI 全綠：補齊 `SECURITY.md`、`NOTICE`、`CODE_OF_CONDUCT.md`；清除 `ruff` / `mypy` / wheel smoke test / CI 冷卻測試失敗；明確界定 KHAVIS 公開平台與獨立 K.A.V.I.S. 執行引擎的整合邊界。
 
 ## [0.5.0] — 2026-10-30
 
@@ -60,4 +63,5 @@
 - 離線 mock 故障流程演練（`examples/zero_quota_demo.py`，不需 key、網路或 Ollama）。
 - 單元測試涵蓋路由、供應商能力探索、模型勾選持久化、附件防護、工作台 API 與前端契約。
 
+[0.6.0]: https://github.com/kiddhsu5/KHAVIS/releases/tag/v0.6.0
 [0.5.0]: https://github.com/kiddhsu5/KHAVIS/releases/tag/v0.5.0

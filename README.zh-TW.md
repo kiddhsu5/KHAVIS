@@ -6,7 +6,7 @@ KHAVIS 整合多個 CLI Agent 與可自行部署的 LLM 路由。你可以共用
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org)
-[![Status](https://img.shields.io/badge/status-v0.5.0-emerald.svg)](#roadmap)
+[![Status](https://img.shields.io/badge/status-v0.6.0-emerald.svg)](#roadmap)
 [![Project site](https://img.shields.io/badge/Project_Site-khavis.khorus.tech-0EA5E9)](https://khavis.khorus.tech)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -52,7 +52,7 @@ Routing 與 failover 是執行期間的最佳努力行為。provider 仍可能�
 # macOS / Linux（bash）
 bash deploy/install.sh
 
-# 含 K.A.V.I.S. 遠端派工橋接器（需要已安裝 hermes 的 Unix 環境）
+# 含選用的本機 K.A.V.I.S. 遠端派工橋接器（僅綁定 localhost）
 bash deploy/install.sh --with-adapter
 
 # Windows（PowerShell，於 repo 根目錄）
