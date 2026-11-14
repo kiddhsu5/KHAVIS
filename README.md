@@ -2,7 +2,7 @@
 
 > One workspace where an AI team ships together.
 
-KHAVIS integrates multiple CLI agents with a self-hostable LLM router. Share a project and let agents接力 in relay, or isolate parallel work with Git Worktrees — then inspect diffs and checks before adopting any result. Provider availability, quotas, and tooling always depend on your own deployment.
+KHAVIS integrates multiple CLI agents with a self-hostable LLM router. Share a project and let agents hand off in relay, or isolate parallel work with Git Worktrees — then inspect diffs and checks before adopting any result. Provider availability, quotas, and tooling always depend on your own deployment.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org)
@@ -18,14 +18,14 @@ Two surfaces ship together: the **quota handoff console** at `/workbench` (live 
 
 The library archives outputs by conversation topic, keeps the producing task on record, and offers format filters, previews, and downloads. Classification uses local rules with restricted content samples — no paid model calls, no full-text or vector knowledge base.
 
-Shared workspaces suit接力 work; Git Worktrees suit isolated parallel changes. An agent saying "done" is not a passed test and not a merge. KHAVIS is the workspace platform; **K.A.V.I.S.** is the optional built-in agent layer.
+Shared workspaces suit relay handoffs; Git Worktrees suit isolated parallel changes. An agent saying "done" is not a passed test and not a merge. KHAVIS is the public open-source workspace platform and BYOK router; **K.A.V.I.S.** is an optional local LangGraph agent layer or separately deployed external runtime bridged via OpenAI-compatible HTTP endpoints.
 
 **Start here:** [Quick start](#quick-start). To check the control flow without any keys, use the clearly-labelled offline mock below — it verifies routing logic, not real providers or CLIs.
 
 ## Names in this project
 
-- **KHAVIS** is the platform and this repository: provider registry, capability router, config files, CLI, optional OpenAI-compatible HTTP server, audit and budget components, and provider plugins.
-- **K.A.V.I.S.** is the built-in agent name used by the optional multi-agent and deployment layers. Depending on installed extras and deployment, it can run the local LangGraph team or dispatch through the configured `deploy/kavis_adapter.py` bridge. It is not a provider and does not guarantee any remote service or fixed model.
+- **KHAVIS** is the open-source platform and this repository: Web Workbench (`/workbench`, `/workbench-c`, `/agents`, `/database`), multi-CLI team/relay launcher (`khavis team` / `khavis run`), provider registry, capability router, CLI, optional OpenAI-compatible HTTP server, audit and budget components, and provider plugins.
+- **K.A.V.I.S.** is the optional agent runtime integration: it can run the built-in local LangGraph team (`agents/`) or connect to a separately hosted K.A.V.I.S. Hub (`KAVIS_HUB_URL`) / localhost `deploy/kavis_adapter.py` bridge over OpenAI-compatible HTTP + governance status APIs. Its runtime engine is maintained separately and is not required for KHAVIS core routing or CLI collaboration.
 - **External CLI tools** (Claude Code, Codex, Antigravity, MiniMax Code, OpenCode, Aider, or your own commands) are integration targets, not extra KHAVIS models. They must be installed, logged in, and configured separately.
 
 Available pools are defined by config files. A plugin existing in the repo does not imply the provider, pool, model alias, quota, or external CLI is available. Check `config/pools.yaml`, environment variables, and `khavis doctor` before sending real requests.

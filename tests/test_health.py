@@ -430,7 +430,7 @@ class TestSingleProbe:
         assert tracker.get("B").state is PoolState.OPEN
         # A's probe is in flight -> next caller is routed to B's probe.
         tracker.policy.cooldown_s = 60.0
-        tracker.get("B").opened_at = 0.0  # B's cooldown long over
+        tracker.get("B").opened_at = time.monotonic() - 120.0  # B's cooldown long over
         assert router.select("x", strategy="priority") is b
 
 

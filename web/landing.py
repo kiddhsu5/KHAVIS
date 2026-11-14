@@ -127,23 +127,31 @@ def render_landing_html(
         </div>
       </a>
 
-      <nav class="hidden md:flex items-center gap-6 text-xs font-medium text-slate-300">
-        <a href="#features" class="hover:text-white transition">核心能力</a>
-        <a href="#architecture" class="hover:text-white transition">多 CLI 協同</a>
-        <a href="#enterprise" class="hover:text-white transition">團隊與商用方案</a>
+      <nav class="hidden md:flex items-center gap-5 text-xs font-medium text-slate-300">
+        <a href="/workbench" class="hover:text-white transition">⚡ 額度交接台</a>
+        <a href="/workbench-c" class="hover:text-white transition">💬 任務工作台</a>
+        <a href="/agents" class="hover:text-white transition">🤖 Agent 與模型</a>
+        <a href="/database" class="hover:text-white transition">🗂️ 文件庫</a>
         <a href="#status-matrix" class="hover:text-white transition">即時節點狀態 ({ok_n}/{total})</a>
       </nav>
 
-      <div class="flex items-center gap-2.5">
-        <a href="https://github.com/kiddhsu5/KHAVIS" target="_blank" rel="noopener"
-           class="px-3 py-1.5 rounded-lg glass-card hover:bg-white/10 text-xs font-medium flex items-center gap-1.5 transition">
-          <i class="fab fa-github text-sm"></i>
-          <span class="hidden sm:inline">GitHub</span>
+      <div class="flex items-center gap-2">
+        <a href="/agents"
+           class="px-3 py-1.5 rounded-lg glass-card hover:bg-white/10 text-xs font-medium flex items-center gap-1.5 transition"
+           title="新增供應商與調整 Agent 模型">
+          <i class="fas fa-sliders text-sky-300 text-xs"></i>
+          <span class="hidden sm:inline">Agent 與模型</span>
+        </a>
+        <a href="/workbench-c"
+           class="px-3 py-1.5 rounded-lg glass-card hover:bg-white/10 text-xs font-medium flex items-center gap-1.5 transition"
+           title="任務工作台">
+          <i class="fas fa-comments text-emerald-300 text-xs"></i>
+          <span class="hidden sm:inline">任務工作台</span>
         </a>
         <a href="/workbench"
            class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-ink-950 transition shadow-md flex items-center gap-1.5"
            style="background:linear-gradient(135deg,#8FA894,#7C9BB5)">
-          <span>進入工作台</span>
+          <span>額度交接台</span>
           <i class="fas fa-arrow-right text-[10px]"></i>
         </a>
       </div>
@@ -258,13 +266,30 @@ def render_landing_html(
               <div class="flex-grow border-t border-white/10"></div>
             </div>
 
-            <!-- 訪客免登入唯讀預覽按鈕 -->
+            <!-- 訪客免登入唯讀預覽按鈕與四大系統入口 -->
             <div class="space-y-2.5">
-              <a href="/workbench"
-                 class="w-full py-2.5 px-4 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/15 text-xs sm:text-sm font-semibold text-white transition flex items-center justify-center gap-2">
-                <i class="fas fa-eye text-sky-300"></i>
-                <span>免登入 · 進入訪客唯讀展示模式 (Live Demo)</span>
-              </a>
+              <div class="grid grid-cols-2 gap-2 text-center">
+                <a href="/workbench"
+                   class="py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-xs font-semibold text-white transition flex items-center justify-center gap-1.5">
+                  <i class="fas fa-bolt text-amber-300"></i>
+                  <span>額度交接台 (/workbench)</span>
+                </a>
+                <a href="/workbench-c"
+                   class="py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-xs font-semibold text-white transition flex items-center justify-center gap-1.5">
+                  <i class="fas fa-comments text-emerald-300"></i>
+                  <span>任務工作台 (/workbench-c)</span>
+                </a>
+                <a href="/agents"
+                   class="py-2 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-sky-500/30 text-xs font-semibold text-sky-200 transition flex items-center justify-center gap-1.5">
+                  <i class="fas fa-sliders text-sky-300"></i>
+                  <span>Agent 與模型 (/agents)</span>
+                </a>
+                <a href="/database"
+                   class="py-2 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-semibold text-slate-200 transition flex items-center justify-center gap-1.5">
+                  <i class="fas fa-folder-open text-amber-200"></i>
+                  <span>文件庫 (/database)</span>
+                </a>
+              </div>
               <div class="grid grid-cols-2 gap-2 text-center">
                 <a href="/dashboard" class="py-1.5 px-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 text-[11px] font-mono text-slate-400 hover:text-white transition">
                   📊 維運儀表板 (/dashboard)
@@ -355,7 +380,7 @@ khavis serve   # 開啟 http://localhost:8080/workbench</code></pre>
             </ul>
           </div>
           <div class="pt-2 flex flex-wrap gap-2">
-            <a href="https://github.com/kiddhsu5/KHAVIS/security/advisories/new"
+            <a href="mailto:security@kiddhsu.taipei?subject=KHAVIS%20Enterprise%20Inquiry"
                class="px-4 py-2 rounded-xl text-xs font-bold text-ink-950 transition"
                style="background:linear-gradient(135deg,#7C9BB5,#8FA894)">
               📩 聯繫商業合作 / 私有化部署

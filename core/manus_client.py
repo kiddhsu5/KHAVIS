@@ -44,7 +44,7 @@ class ManusAPIError(RuntimeError):
 
     def to_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {
-            "type": f"urn:khavis:errors:{self.code}",
+            "type": f"https://khavis.khorus.tech/errors/{self.code}",
             "title": self.code.replace("_", " ").title(),
             "status": self.status_code,
             "detail": self.message,

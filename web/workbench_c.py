@@ -266,8 +266,12 @@ html:not(.dark) #live-results-container > div{
   }
   #c-sidebar.c-open{transform:none}
 }
-/* 主欄與卡片都不允許被內容撐破 */
-#c-main{min-width:0}
+/* 主欄與卡片都不允許被內容撐破；明確鎖定 flex 子項 min-height:0 與獨立縱向捲動 */
+html,body{height:100%;height:100dvh;overflow:hidden}
+#c-sidebar,#c-drawer{min-height:0;height:100%}
+#c-item-list{min-height:0;flex:1 1 0%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#c-main{min-width:0;min-height:0;flex:1 1 0%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#c-fullpage-content{min-height:0;flex:1 1 0%;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .c-card{min-width:0}
 
 /* ══════════════════════════════════════════════════════════════════
@@ -388,7 +392,7 @@ html:not(.dark) #live-results-container > div{
   border-left:3px solid var(--m-sage);
   border-radius:4px 16px 16px 16px;padding:.9rem 1.05rem;
   background:var(--m-panel-2);color:var(--m-bone);font-size:14.5px;line-height:1.75;
-  white-space:pre-wrap;word-break:break-word;max-height:30rem;overflow-y:auto;
+  white-space:pre-wrap;word-break:break-word;overflow-x:auto;
 }
 
 /* Agent 交叉審查與比較（預設收起，點擊展開） */
@@ -409,7 +413,7 @@ html:not(.dark) #live-results-container > div{
   padding:.75rem .9rem;border-top:1px solid rgba(201,161,126,.2);
   font-size:12.5px;font-family:ui-monospace,monospace;line-height:1.65;
   color:var(--m-dim);white-space:pre-wrap;word-break:break-word;
-  max-height:20rem;overflow-y:auto;background:var(--m-panel-3);
+  overflow-x:auto;background:var(--m-panel-3);
 }
 html:not(.dark) .c-turn{
   background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(242,245,249,.92));
@@ -730,7 +734,7 @@ _VIVID_CSS: Final[str] = """
 .v-detail-sec h4{font-size:.7rem;font-weight:800;letter-spacing:.05em;color:var(--m-faint);
   text-transform:uppercase;margin-bottom:.5rem;display:flex;align-items:center;gap:.4rem}
 .v-detail-pre{white-space:pre-wrap;word-break:break-word;font-size:.74rem;line-height:1.65;color:var(--m-dim);
-  max-height:26rem;overflow-y:auto}
+  overflow-x:auto}
 
 html:not(.dark) .v-turn-docs{background:rgba(255,255,255,.6)}
 html:not(.dark) .v-thread-card{background:rgba(255,255,255,.65)}
@@ -779,7 +783,7 @@ _SIDEBAR: Final[str] = """
 
     <button type="button" onclick="cOpenPage('agents')" id="nav-agents" data-nav="agents" class="tab-btn v-nav">
       <span class="v-nav-ic v-ic-agents"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M12 7v4m0 0-5 5m5-5 5 5" stroke-linecap="round"/></svg></span>
-      <span class="text-xs font-semibold min-w-0">Agent 狀態</span>
+      <span class="text-xs font-semibold min-w-0">Agent／模型／服務商</span>
       <span class="text-[9px] font-mono px-1 py-0.5 rounded shrink-0" style="background:var(--m-sage-soft);color:var(--m-sage)"><span id="c-fleet-count">8</span>/8</span>
       <span class="v-nav-dot" style="background:var(--v-emerald)"></span>
     </button>
@@ -797,6 +801,12 @@ _SIDEBAR: Final[str] = """
       <span class="text-[9px] font-mono shrink-0" style="color:var(--v-emerald)" id="c-quota-pct">額度 95%</span>
       <span class="v-nav-dot" style="background:var(--v-rose)"></span>
     </button>
+
+    <a href="/workbench" class="v-nav" title="前往額度交接台 (/workbench)">
+      <span class="v-nav-ic v-ic-quota"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-linejoin="round"/></svg></span>
+      <span class="text-xs font-semibold min-w-0">額度交接台</span>
+      <span class="text-[9px] font-mono shrink-0" style="color:var(--m-mist)">/workbench ↗</span>
+    </a>
   </div>
 
   <!-- ═══ 歷史談話：依專案分組的對話串清單 ═══ -->
@@ -903,13 +913,18 @@ _TOPBAR: Final[str] = """
     <button type="button" onclick="cOpenPage('agents')" id="c-top-btn-agents"
             class="px-2.5 py-1 rounded-lg m-btn-ghost text-[11px] font-semibold transition inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap"
             title="進入 Agent 狀態、模型新增/刪除/調整與服務商管理專頁">
-      <span>🤖 Agent 狀態<span class="hidden 2xl:inline">與模型/服務商</span></span>
+      <span>🤖 Agent／模型／服務商</span>
     </button>
     <button type="button" onclick="cOpenPage('artifacts')" id="c-top-btn-db"
             class="px-2.5 py-1 rounded-lg m-btn-ghost text-[11px] font-semibold transition inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap"
             title="進入資料庫產物專頁">
       <span>📚 資料庫</span>
     </button>
+    <a href="/workbench" id="c-top-btn-relay"
+       class="px-2.5 py-1 rounded-lg m-btn-ghost text-[11px] font-semibold transition inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+       title="前往額度交接台 (/workbench)">
+      <span>⚡ 額度交接台</span>
+    </a>
     <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" class="hidden md:inline" style="color:var(--m-faint)" aria-hidden="true"><path d="m9 6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <span class="font-medium truncate text-[11px] hidden md:inline" id="c-view-title" style="color:var(--m-faint)">主對話視窗</span>
   </div>
@@ -1185,8 +1200,8 @@ function cOpenPage(tab, pushUrl = true) {
   switchTab(tab);
   if (pushUrl && typeof history !== 'undefined' && typeof history.pushState === 'function') {
     try {
-      const urlMap = { command: '/workbench', agents: '/agents', artifacts: '/database', quotas: '/workbench?page=quotas', wizard: '/agents' };
-      const targetUrl = urlMap[tab] || '/workbench';
+      const urlMap = { command: '/workbench-c', agents: '/agents', artifacts: '/database', quotas: '/workbench-c?page=quotas', wizard: '/agents' };
+      const targetUrl = urlMap[tab] || '/workbench-c';
       if (typeof location !== 'undefined' && location.pathname + location.search !== targetUrl) {
         history.pushState({ page: tab }, '', targetUrl);
       }
@@ -1356,8 +1371,8 @@ async function cSaveAgentModelSelection() {
     }
     cToast(`✅ 已更新模型清單（${models.length} 個）`, 'ok');
     cFullpageHide();
-    if (typeof location !== 'undefined' && location.pathname !== '/workbench') {
-      try { history.pushState({ page: 'command' }, '', '/workbench'); } catch (_) {}
+    if (typeof location !== 'undefined' && location.pathname !== '/workbench-c') {
+      try { history.pushState({ page: 'command' }, '', '/workbench-c'); } catch (_) {}
     }
     switchTab('command');
     setTimeout(() => { cOpenPage('agents'); }, 60);
@@ -1369,8 +1384,8 @@ async function cSaveAgentModelSelection() {
 function cCloseFullpage() {
   cFullpageHide();
   // 全頁關閉 = 回到主對話串（網址同步，不觸發 push 迴圈）
-  if (typeof location !== 'undefined' && location.pathname !== '/workbench') {
-    try { history.pushState({ page: 'command' }, '', '/workbench'); } catch (_) {}
+  if (typeof location !== 'undefined' && location.pathname !== '/workbench-c') {
+    try { history.pushState({ page: 'command' }, '', '/workbench-c'); } catch (_) {}
   }
   switchTab('command');
 }
@@ -1420,12 +1435,12 @@ function cOpenTurnDetail(id) {
 
       <div class="v-detail-sec">
         <h4><span>🏁</span>共識結論 (Consensus)</h4>
-        <pre class="v-detail-pre">${escapeHtml(t.raw || t.result || '（無）')}</pre>
+        <pre class="v-detail-pre">${escapeHtml(t.consensus || t.raw || t.result || '（無）')}</pre>
       </div>
 
       <div class="v-detail-sec">
         <h4><span>⚔️</span>Agent 交叉審查與比較明細 (Review)</h4>
-        <pre class="v-detail-pre">${escapeHtml(t.review || '（這一輪沒有交叉審查明細）')}</pre>
+        <pre class="v-detail-pre">${escapeHtml(t.review_details || t.review || '（這一輪沒有交叉審查明細）')}</pre>
       </div>
     </div>`;
 
@@ -1544,17 +1559,82 @@ function cRelTime(t) {
 }
 
 // ── 對話串模型 ────────────────────────────────────────────────────────
-// 每個 dispatch 帶 thread id；舊的紀錄沒有 thread → 一筆任務自成一串。
+// 每個 dispatch 帶 thread id；若舊紀錄沒有 thread id，依「同專案 + 時間相鄰（30 分鐘內）」推回所屬對話串。
+const C_LEGACY_THREAD_WINDOW_SEC = 1800;
+const C_THREAD_STORE_KEY = 'khavis.c.activeThread';
+
+function cSaveActiveThreadState() {
+  try {
+    const state = {
+      threadId: cThreadId || '',
+      threadStep: cThreadStep || 0,
+      selectedThread: cSelectedThread || '',
+      isNewDraft: !!cIsNewDraft,
+      previousTurnContext: (typeof previousTurnContext !== 'undefined' && previousTurnContext) ? previousTurnContext : null
+    };
+    localStorage.setItem(C_THREAD_STORE_KEY, JSON.stringify(state));
+  } catch (_) {}
+}
+
+function cRestoreActiveThreadState() {
+  try {
+    const raw = localStorage.getItem(C_THREAD_STORE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (!s || typeof s !== 'object') return;
+    if (s.isNewDraft) {
+      cIsNewDraft = true;
+      return;
+    }
+    if (s.threadId) cThreadId = s.threadId;
+    if (typeof s.threadStep === 'number') cThreadStep = s.threadStep;
+    if (s.selectedThread) cSelectedThread = s.selectedThread;
+    if (s.previousTurnContext && typeof previousTurnContext !== 'undefined') {
+      previousTurnContext = s.previousTurnContext;
+    }
+  } catch (_) {}
+}
+cRestoreActiveThreadState();
+
 function cThreadKeyOf(t) {
-  // 舊紀錄沒有 thread id → 一筆任務自成一串。
-  // handle 只到秒，同秒的兩筆會撞號，所以要加上 ts 才唯一。
+  if (!t) return 'legacy-unknown';
   if (t.thread) return t.thread;
+  if (t._inferredThread) return t._inferredThread;
+  const ts = Number(t.ts || 0);
+  if (ts > 0) {
+    const proj = String(t.project || cActiveProject || 'shared-app').trim() || 'shared-app';
+    return 'legacy-' + proj + '-' + Math.floor(ts / C_LEGACY_THREAD_WINDOW_SEC);
+  }
   return 'legacy-' + (t.id || '') + '-' + (t.ts || '');
 }
 
 function cBuildThreads() {
+  // 先依時間由舊到新推斷舊紀錄（無 thread 欄位）的相鄰對話串（同專案 + 30 分鐘內）
+  const chronological = cTasks.slice().sort((a, b) => (Number(a.ts || 0) - Number(b.ts || 0)));
+  const lastByProj = Object.create(null);
+  chronological.forEach(t => {
+    const proj = String(t.project || cActiveProject || 'shared-app').trim() || 'shared-app';
+    const ts = Number(t.ts || 0);
+    if (t.thread) {
+      lastByProj[proj] = { key: t.thread, ts };
+      return;
+    }
+    const prev = lastByProj[proj];
+    if (prev && ts > 0 && prev.ts > 0 && Math.abs(ts - prev.ts) <= C_LEGACY_THREAD_WINDOW_SEC) {
+      t._inferredThread = prev.key;
+      lastByProj[proj] = { key: prev.key, ts };
+    } else {
+      const fallbackKey = ts > 0
+        ? ('legacy-' + proj + '-' + Math.floor(ts / C_LEGACY_THREAD_WINDOW_SEC))
+        : ('legacy-' + (t.id || '') + '-' + (t.ts || ''));
+      t._inferredThread = fallbackKey;
+      if (ts > 0) lastByProj[proj] = { key: fallbackKey, ts };
+    }
+  });
+
   const map = new Map();
   cTasks.forEach(t => {
+    if (t.archived) return;
     const key = cThreadKeyOf(t);
     let th = map.get(key);
     if (!th) {
@@ -1569,7 +1649,11 @@ function cBuildThreads() {
     (t.agents || []).forEach(a => { if (th.agents.indexOf(a) < 0) th.agents.push(a); });
   });
   map.forEach(th => {
-    th.tasks.sort((a, b) => ((a.step || 0) - (b.step || 0)));
+    th.tasks.sort((a, b) => {
+      const sa = Number(a.step || 0), sb = Number(b.step || 0);
+      if (sa !== sb && sa > 0 && sb > 0) return sa - sb;
+      return Number(a.ts || 0) - Number(b.ts || 0);
+    });
     const first = th.tasks[0];
     if (first && first.prompt) th.title = first.prompt;
     const last = th.tasks[th.tasks.length - 1];
@@ -1590,7 +1674,13 @@ function cBuildThreads() {
       const ts = last ? (last.ts || 0) : 0;
       if (ts >= newestTs) { newestTs = ts; newest = th; }
     });
-    if (newest) cSelectedThread = newest.id;
+    if (newest) {
+      cSelectedThread = newest.id;
+      if (!cThreadId) {
+        cThreadId = newest.id;
+        cThreadStep = newest.tasks.length;
+      }
+    }
   }
 }
 
@@ -1602,6 +1692,49 @@ function cThreadGroupKeys(th, viewKey) {
   return [cDayLabel({ day: th.day })];
 }
 
+async function cDeleteThread(ev, threadId) {
+  if (ev) ev.stopPropagation();
+  const th = cThreads.get(threadId);
+  if (!th) return;
+  if (!window.confirm('確定刪除對話串「' + (th.title || threadId).slice(0, 40) + '」？')) return;
+  try {
+    const items = th.tasks.map(t => ({ ts: t.ts, prompt: String(t.prompt || '').slice(0, 120), thread: t.thread || '' }));
+    await fetch('/api/workbench/history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', threads: [threadId], items })
+    });
+    cTasks = cTasks.filter(t => cThreadKeyOf(t) !== threadId);
+    if (cSelectedThread === threadId) { cSelectedThread = null; cThreadId = null; cThreadStep = 0; }
+    cSaveActiveThreadState();
+    cRenderItemList();
+    cToast('已刪除對話串', 'ok');
+  } catch (e) {
+    cToast('刪除失敗：' + e.message, 'err');
+  }
+}
+
+async function cArchiveThread(ev, threadId) {
+  if (ev) ev.stopPropagation();
+  const th = cThreads.get(threadId);
+  if (!th) return;
+  try {
+    const items = th.tasks.map(t => ({ ts: t.ts, prompt: String(t.prompt || '').slice(0, 120), thread: t.thread || '' }));
+    await fetch('/api/workbench/history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'archive', threads: [threadId], items })
+    });
+    th.tasks.forEach(t => { t.archived = true; });
+    if (cSelectedThread === threadId) { cSelectedThread = null; cThreadId = null; cThreadStep = 0; }
+    cSaveActiveThreadState();
+    cRenderItemList();
+    cToast('已封存對話串', 'ok');
+  } catch (e) {
+    cToast('封存失敗：' + e.message, 'err');
+  }
+}
+
 function cThreadRow(th) {
   const st = cStatusMeta(th.status);
   const sel = cSelectedThread === th.id;
@@ -1609,22 +1742,28 @@ function cThreadRow(th) {
   if (th.project) bits.push(th.project);
   if (th.mode) bits.push(th.mode);
   if (th.agents.length) bits.push(th.agents.join('+'));
-  if (th.turns > 1) bits.push(th.turns + ' 輪');
+  bits.push(th.turns + ' 輪');
   const time = cRelTime({ day: th.day, time: th.time });
-  return `<button type="button" onclick="cSelectThread('${escapeHtml(th.id)}')" data-c-thread="${escapeHtml(th.id)}"
-            class="c-item ${sel ? 'c-item-sel' : ''}">
+  const tid = escapeHtml(th.id);
+  return `<div onclick="cSelectThread('${tid}')" data-c-thread="${tid}" role="button" tabindex="0"
+            class="c-item group ${sel ? 'c-item-sel' : ''}">
     <div class="flex items-center gap-2">
       <span class="c-item-dot" style="background:${st.color}"></span>
       <span class="c-item-title text-[12px] truncate flex-1">${escapeHtml(th.title)}</span>
-      <span class="c-item-time text-[10px] font-mono shrink-0">${escapeHtml(time)}</span>
+      <span class="c-item-time text-[10px] font-mono shrink-0 group-hover:hidden">${escapeHtml(time)}</span>
+      <span class="hidden group-hover:inline-flex items-center gap-1 shrink-0">
+        <button type="button" onclick="cArchiveThread(event, '${tid}')" class="px-1 py-0.5 rounded text-[10px] hover:bg-white/10" title="封存對話串">📦</button>
+        <button type="button" onclick="cDeleteThread(event, '${tid}')" class="px-1 py-0.5 rounded text-[10px] hover:bg-rose-500/20 text-rose-300" title="刪除對話串">✕</button>
+      </span>
     </div>
     ${bits.length ? `<div class="c-item-meta text-[10px] truncate mt-0.5 pl-3.5">${escapeHtml(bits.join(' · '))}</div>` : ''}
-  </button>`;
+  </div>`;
 }
 
 function cRenderItemList() {
   const host = document.getElementById('c-item-list');
   if (!host) return;
+  const keepListScroll = host.scrollTop;
   const q = String(cSearchQuery || '').trim().toLowerCase();
   const isFailed = st => st === 'failed' || st === 'aborted';
 
@@ -1667,10 +1806,12 @@ function cRenderItemList() {
     g.items.forEach(th => { html += cThreadRow(th); });
   });
   host.innerHTML = html;
+  host.scrollTop = keepListScroll;
   cRenderConversation();
 }
 
 function cSelectThread(id) {
+  const switched = cSelectedThread !== id;
   cIsNewDraft = false;
   cSelectedThread = id;
   cCenterMode = 'thread';
@@ -1690,10 +1831,14 @@ function cSelectThread(id) {
       if (typeof syncContinuationBanner === 'function') syncContinuationBanner();
     }
   }
+  cSaveActiveThreadState();
   switchTab('command');
   cUpdateComposerHint();
-  cRenderConversation();
   cRenderItemList();
+  if (switched) {
+    const main = document.getElementById('c-main');
+    if (main) main.scrollTop = 0;
+  }
 }
 
 // 「新任務」= 開一串全新的對話（完全清除舊對話記憶與輪數，從第 1 輪獨立開始）
@@ -1709,6 +1854,7 @@ function cNewTask() {
   } else if (typeof previousTurnContext !== 'undefined') {
     previousTurnContext = null;
   }
+  cSaveActiveThreadState();
   const lrc = document.getElementById('live-results-container');
   if (lrc) lrc.innerHTML = '';
   const pi = document.getElementById('prompt-input');
@@ -1951,19 +2097,22 @@ function cTurnHtml(t, idx) {
     </div>`;
   } else if (t.status === 'failed' || t.status === 'aborted') {
     footerFlow = `<div class="c-turn-actions">
-      <button type="button" onclick="cContinue('${id}')" class="c-action m-btn-primary font-semibold">重試</button>
+      <button type="button" onclick="cRerun('${id}')" class="c-action m-btn-primary font-semibold">重試</button>
+      <button type="button" onclick="cContinue('${id}')" class="c-action transition"
+        style="background:transparent;color:#8FACBF;border:1px solid rgba(124,155,181,.38)"
+        title="從此輪接續對話（帶入該輪指令與成果）">↳ 從此接續</button>
     </div>`;
   } else {
     footerFlow = `<div class="c-turn-footer-flow">
       <div class="c-turn-actions">
         <button type="button" onclick="cContinue('${id}')" class="c-action transition"
-          style="background:transparent;color:#8FACBF;border:1px solid rgba(124,155,181,.38)">以此任務接續</button>
+          style="background:transparent;color:#8FACBF;border:1px solid rgba(124,155,181,.38)"
+          title="從此輪接續對話（以此任務接續，帶入該輪指令與成果）">↳ 從此接續</button>
       </div>
       ${cOutputFilesHtml(t)}
       <div class="c-turn-actions">
         <button type="button" onclick="cOpenTurnDetail('${id}')" class="c-action m-btn-ghost"
                 title="角色流水線、交叉審查與比較明細（全頁檢視）">🔍 執行明細</button>
-        <button type="button" onclick="cShowDiff()" class="c-action m-btn-ghost">專案檔案 Diff</button>
       </div>
     </div>`;
   }
@@ -2073,8 +2222,14 @@ function cRenderConversation() {
     <button type="button" onclick="cToggleAdvanced()" class="c-action m-btn-ghost" aria-pressed="${cAdvanced ? 'true' : 'false'}" title="顯示或隱藏 Agent 名稱、耗時、交叉審查等技術細節（預設隱藏，只看成果）">${cAdvanced ? '🔍 隱藏進階明細' : '🔍 顯示進階明細'}</button>
     <button type="button" onclick="cSetCenterMode('overview')" class="c-action m-btn-ghost">任務總覽</button>`;
 
+  const main = document.getElementById('c-main');
+  const prevThreadOnDom = turns.getAttribute('data-rendered-thread') || '';
+  const keepMainScroll = (main && prevThreadOnDom === String(th.id)) ? main.scrollTop : 0;
+
+  turns.setAttribute('data-rendered-thread', String(th.id));
   turns.innerHTML = th.tasks.map((t, i) => cTurnHtml(t, i)).join('');
   cHydrateOpenFiles();
+  if (main) main.scrollTop = keepMainScroll;
   // live slot：只有「本頁面剛派工的那一串」才顯示 legacy 的 hero card，
   // 否則會顯示跟目前對話串無關的成果。
   if (slot) {
@@ -2265,10 +2420,13 @@ function cTaskActions(t, expanded) {
   }
   if (t.status === 'failed' || t.status === 'aborted') {
     return `<button type="button" onclick="cToggleExpand('${id}')" class="c-action m-btn-ghost">${expanded ? '收合' : '看原因'}</button>
+            <button type="button" onclick="cContinue('${id}')" class="c-action transition"
+              style="background:transparent;color:#8FACBF;border:1px solid rgba(124,155,181,.38)">↳ 從此接續</button>
             <button type="button" onclick="cRerun('${id}')" class="c-action m-btn-primary font-semibold">重試</button>`;
   }
   return `<button type="button" onclick="cContinue('${id}')" class="c-action transition"
-            style="background:transparent;color:#8FACBF;border:1px solid rgba(124,155,181,.38)">以此任務接續</button>
+            style="background:transparent;color:#8FACBF;border:1px solid rgba(124,155,181,.38)"
+            title="從此輪接續對話（以此任務接續）">↳ 從此接續</button>
           <button type="button" onclick="cRerun('${id}')" class="c-action m-btn-ghost">重新執行</button>`;
 }
 
@@ -2336,20 +2494,16 @@ function cTaskCard(t, opts) {
 
       ${liveBlock}
 
-      <!-- 第二行：動作列 + 預設展示的 Output 產出文檔下載欄 + 專案檔案 Diff -->
+      <!-- 第二行：動作列 + 預設展示的 Output 產出文檔下載欄 -->
       <div class="mt-2.5 flex items-center gap-1.5 flex-wrap justify-end">
         ${cTaskActions(t, expanded)}
       </div>
-      ${t.status === 'done' ? `<div class="mt-2.5">${cOutputFilesHtml(t)}</div>
-      <div class="mt-2 flex flex-wrap gap-1.5">
-        <button type="button" onclick="cShowDiff()" class="c-action m-btn-ghost">專案檔案 Diff</button>
-      </div>` : ''}
+      ${t.status === 'done' ? `<div class="mt-2.5">${cOutputFilesHtml(t)}</div>` : ''}
     </div>
 
     <div class="c-body ${expanded ? '' : 'hidden'} px-4 pb-3.5">
       ${t.body || '<div class="text-[11px]" style="color:var(--m-faint)">（此任務沒有額外輸出）</div>'}
       <div class="flex flex-wrap gap-1.5 mt-2.5">
-        <button type="button" onclick="cShowDiff()" class="c-action m-btn-ghost">專案檔案 Diff</button>
         <button type="button" onclick="cOpenExec()" class="c-action m-btn-ghost">完整輸出</button>
       </div>
     </div>
@@ -2432,30 +2586,32 @@ function cToggleExpand(id) {
 function cContinue(id) {
   const t = cTasks.find(x => x.id === id);
   if (!t) return;
-  // 續做哪一串對話，就切到哪一串
+  // 續做哪一串對話，就切到哪一串，並把 cThreadId / cThreadStep 設為該輪
+  cIsNewDraft = false;
   cThreadId = cThreadKeyOf(t);
   cThreadStep = t.step || 1;
   cSelectedThread = cThreadId;
-  // 真的帶入上一輪成果讓後端接續（原本只塞了一個 placeholder 字串）
-  if (t.consensus) {
-    try {
-      const prev = (typeof previousTurnContext !== 'undefined' && previousTurnContext) ? previousTurnContext : null;
-      previousTurnContext = {
-        prompt: t.prompt,
-        consensus: t.consensus,
-        step: prev ? (prev.step || 1) + 1 : 1
-      };
-      if (typeof syncContinuationBanner === 'function') syncContinuationBanner();
-    } catch (e) { /* 取不到就退回純文字接續 */ }
-  }
+  try {
+    previousTurnContext = {
+      prompt: t.prompt || '',
+      consensus: t.consensus || t.raw || '',
+      thread: cThreadId,
+      step: cThreadStep
+    };
+    if (typeof syncContinuationBanner === 'function') syncContinuationBanner();
+  } catch (e) { /* 取不到就退回純文字接續 */ }
+  cSaveActiveThreadState();
+  cUpdateComposerHint();
+  cRenderConversation();
+  cRenderItemList();
   focusComposer();
   const el = document.getElementById('prompt-input');
   if (el) {
-    el.value = t.prompt || '';
+    if (!t.consensus && t.prompt) el.value = t.prompt;
     el.focus();
     try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {}
   }
-  cToast(t.consensus ? '已帶入上一輪脈絡，可直接繼續下指令' : '已載入任務內容，可直接繼續下指令', 'ok');
+  cToast(t.consensus ? '已設定從此輪接續（已帶入上一輪指令與成果脈絡）' : '已載入任務內容，可直接繼續下指令', 'ok');
 }
 
 function cRerun(id) {
@@ -2573,7 +2729,7 @@ async function cLoadTasks() {
                    ${h.collab_mode ? ` · 模式 ${escapeHtml(h.collab_mode)}` : ''}
                    ${Array.isArray(h.backends) && h.backends.length ? ` · ${escapeHtml(h.backends.join(' + '))}` : ''}
                  </div>
-                 ${h.consensus ? `<div class="text-[11px] font-mono leading-[1.7] whitespace-pre-wrap max-h-40 overflow-y-auto mt-1" style="color:var(--m-dim)">${escapeHtml(h.consensus)}</div>` : ''}
+                 ${h.consensus ? `<div class="text-[11px] font-mono leading-[1.7] whitespace-pre-wrap overflow-x-auto mt-1" style="color:var(--m-dim)">${escapeHtml(h.consensus)}</div>` : ''}
                </div>`
       };
     });
@@ -2741,6 +2897,7 @@ async function submitDispatch() {
     previousTurnContext.step = cThreadStep;
     previousTurnContext.thread = cThreadId;
   }
+  cSaveActiveThreadState();
   cFinishTask(ok && !dispatchError, body, consensus);
   cUpdateComposerHint();
   cRenderConversation();
@@ -4278,13 +4435,13 @@ def render_workbench_html_c() -> str:
     body = f"""<body class="font-sans antialiased h-screen flex overflow-hidden m-scroll">
 {_SIDEBAR}
 
-<div class="flex-1 flex flex-col min-w-0 h-full">
+<div class="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden">
 {_TOPBAR}
 
 <!-- ═══════════════════════════════════════════════════════════════
      中上區塊 4：對話串 (Main Conversation Thread)
      ═══════════════════════════════════════════════════════════════ -->
-<main id="c-main" class="flex-1 overflow-y-auto m-scroll">
+<main id="c-main" class="flex-1 min-h-0 overflow-y-auto m-scroll">
   <div id="c-main-container" class="max-w-4xl mx-auto px-4 sm:px-6 py-4">
 
     <section id="view-command" class="tab-content block space-y-3">
@@ -4396,7 +4553,12 @@ def render_workbench_html_c() -> str:
       <div id="c-fullpage-title" class="text-sm font-bold truncate" style="color:var(--m-bone)">頁面</div>
     </div>
     <div class="flex-1"></div>
-    <div id="c-fullpage-actions" class="flex items-center gap-1.5 min-w-0"></div>
+    <div id="c-fullpage-actions" class="flex items-center gap-1.5 min-w-0">
+      <a href="/workbench" class="px-2.5 py-1 rounded-lg m-btn-ghost text-[11px] font-semibold transition inline-flex items-center gap-1 shrink-0 whitespace-nowrap" title="前往額度交接台 (/workbench)">⚡ 額度交接台</a>
+      <button type="button" onclick="cOpenPage('command')" class="px-2.5 py-1 rounded-lg m-btn-ghost text-[11px] font-semibold transition inline-flex items-center gap-1 shrink-0 whitespace-nowrap" title="返回任務工作台對話串 (/workbench-c)">💬 任務工作台</button>
+      <button type="button" onclick="cOpenPage('agents')" class="px-2.5 py-1 rounded-lg m-btn-ghost text-[11px] font-semibold transition inline-flex items-center gap-1 shrink-0 whitespace-nowrap" title="Agent 與模型／服務商管理 (/agents)">🤖 Agent 與模型</button>
+      <button type="button" onclick="cOpenPage('artifacts')" class="px-2.5 py-1 rounded-lg m-btn-ghost text-[11px] font-semibold transition inline-flex items-center gap-1 shrink-0 whitespace-nowrap" title="文件庫 (/database)">📚 文件庫</button>
+    </div>
     <button type="button" onclick="cCloseFullpage()" class="w-8 h-8 rounded-lg m-btn-ghost grid place-items-center shrink-0" title="關閉" aria-label="關閉全頁視圖">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
     </button>

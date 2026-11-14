@@ -25,7 +25,8 @@ import os
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -105,7 +106,9 @@ def _glm_label(item: dict[str, Any]) -> str:
 def parse_glm_quota(data: dict[str, Any]) -> dict[str, Any]:
     """Parse a GLM coding-plan quota payload. Does not call the network."""
     body = data.get("data") if isinstance(data, dict) else None
-    limits = body.get("limits") if isinstance(body, dict) else None
+    if not isinstance(body, dict):
+        return {"ok": False, "provider": "glm", "error": "no data"}
+    limits = body.get("limits")
     if not isinstance(limits, list) or not limits:
         return {"ok": False, "provider": "glm", "error": "no limits"}
     windows: list[dict[str, Any]] = []

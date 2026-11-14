@@ -86,6 +86,7 @@ class CommandCodeBackend(Backend):
         t0 = time.perf_counter()
         err_detail = ""
         stdout = ""
+        stderr = ""
         rc = -1
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -98,9 +99,9 @@ class CommandCodeBackend(Backend):
                 stdout_b, stderr_b = await asyncio.wait_for(
                     proc.communicate(), timeout=self._timeout
                 )
-                rc = proc.returncode if rc == -1 else rc
+                rc = proc.returncode if proc.returncode is not None else -1
                 stdout = stdout_b.decode(errors="replace").strip()
-                stderr_b.decode(errors="replace")
+                stderr = stderr_b.decode(errors="replace").strip()
             except TimeoutError:
                 await _kill(proc)
                 err_detail = f"timeout after {self._timeout}s"
@@ -114,7 +115,7 @@ class CommandCodeBackend(Backend):
             return BackendResult(
                 backend=self.name,
                 ok=False,
-                error=err_detail or f"process exited with {rc}",
+                error=err_detail or stderr or f"process exited with {rc}",
                 latency_ms=latency_ms,
                 model=self._model,
             )

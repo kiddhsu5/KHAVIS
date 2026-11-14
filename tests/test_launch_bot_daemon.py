@@ -145,9 +145,10 @@ class TestStopSafety:
     def test_real_cmdline_lookup_recognises_a_bot_process(self, tmp_path):
         """The actual /proc-or-ps lookup, not a stub, must spot a real bot.main."""
         script = tmp_path / "bot.main.py"
-        script.write_text("import time\ntime.sleep(30)\n")
-        proc = subprocess.Popen([sys.executable, str(script)])
+        script.write_text("import time\nprint('ready', flush=True)\ntime.sleep(30)\n")
+        proc = subprocess.Popen([sys.executable, str(script)], stdout=subprocess.PIPE, text=True)
         try:
+            assert proc.stdout is not None and proc.stdout.readline().strip() == "ready"
             if launcher._cmdline(proc.pid) is None:
                 pytest.skip("no /proc and no usable `ps` on this system")
             assert launcher.is_bot_process(proc.pid) is True

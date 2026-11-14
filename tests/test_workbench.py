@@ -554,7 +554,14 @@ def test_get_database_overview_groups_by_thread() -> None:
             "project": "proj-a",
             "ts": 1000.0,
             "dispatched_at": "2026-10-29 10:00:00",
-            "output_files": [{"path": "docs/report.md", "full_path": "/ws/docs/report.md", "status": "A", "size": "1 KB"}],
+            "output_files": [
+                {
+                    "path": "docs/report.md",
+                    "full_path": "/ws/docs/report.md",
+                    "status": "A",
+                    "size": "1 KB",
+                }
+            ],
         },
         {
             "thread": "t-new",
@@ -563,8 +570,18 @@ def test_get_database_overview_groups_by_thread() -> None:
             "ts": 2000.0,
             "dispatched_at": "2026-10-29 11:00:00",
             "output_files": [
-                {"path": "docs/report.md", "full_path": "/ws/docs/report.md", "status": "M", "size": "2 KB"},
-                {"path": "docs/report.pdf", "full_path": "/ws/docs/report.pdf", "status": "A", "size": "300 KB"},
+                {
+                    "path": "docs/report.md",
+                    "full_path": "/ws/docs/report.md",
+                    "status": "M",
+                    "size": "2 KB",
+                },
+                {
+                    "path": "docs/report.pdf",
+                    "full_path": "/ws/docs/report.pdf",
+                    "status": "A",
+                    "size": "300 KB",
+                },
             ],
         },
     ]
@@ -584,7 +601,9 @@ def test_get_database_overview_groups_by_thread() -> None:
     assert badges["docs/report.pdf"] == "PDF"
 
     # 歷史紀錄沒有 output_files 時，thread 不應出現
-    empty = get_database_overview(history_items=[{"thread": "t-x", "prompt": "沒有產出", "ts": 5.0}])
+    empty = get_database_overview(
+        history_items=[{"thread": "t-x", "prompt": "沒有產出", "ts": 5.0}]
+    )
     assert all(t["thread"] != "t-x" for t in empty["threads"])
 
 
@@ -619,13 +638,17 @@ def test_agent_models_set_and_fetch(monkeypatch) -> None:
 
     # 4. fetch：mock 供應商抓取
     def fake_discover(specs, values, timeout_s=6.0):  # noqa: ANN001, ARG001
-        return [{
-            "env": specs[0]["env"], "label": "Stub", "status": "ok",
-            "models": [
-                {"id": "glm-a", "ref": "ZHIPUAI_API_KEY::glm-a", "provider_label": "Stub"},
-                {"id": "glm-b", "ref": "ZHIPUAI_API_KEY::glm-b", "provider_label": "Stub"},
-            ],
-        }]
+        return [
+            {
+                "env": specs[0]["env"],
+                "label": "Stub",
+                "status": "ok",
+                "models": [
+                    {"id": "glm-a", "ref": "ZHIPUAI_API_KEY::glm-a", "provider_label": "Stub"},
+                    {"id": "glm-b", "ref": "ZHIPUAI_API_KEY::glm-b", "provider_label": "Stub"},
+                ],
+            }
+        ]
 
     monkeypatch.setattr("core.provider_capabilities.discover_provider_capabilities", fake_discover)
     h_fetch = DummyStatusHandler(
@@ -656,9 +679,28 @@ def test_database_endpoint(monkeypatch) -> None:
         _wb_module,
         "get_database_overview",
         lambda: {
-            "threads": [{"thread": "t1", "title": "T", "project": "p", "dispatched_at": "", "ts": 1.0, "count": 1,
-                         "files": [{"name": "a.md", "path": "a.md", "full_path": "/ws/a.md", "status": "A",
-                                    "size": "", "mtime": "", "icon": "fa-file-alt", "badge": "MD"}]}],
+            "threads": [
+                {
+                    "thread": "t1",
+                    "title": "T",
+                    "project": "p",
+                    "dispatched_at": "",
+                    "ts": 1.0,
+                    "count": 1,
+                    "files": [
+                        {
+                            "name": "a.md",
+                            "path": "a.md",
+                            "full_path": "/ws/a.md",
+                            "status": "A",
+                            "size": "",
+                            "mtime": "",
+                            "icon": "fa-file-alt",
+                            "badge": "MD",
+                        }
+                    ],
+                }
+            ],
             "ungrouped": [],
             "total": 1,
         },
@@ -912,7 +954,12 @@ def test_agent_skills_and_result_review_split(tmp_path) -> None:
     files = _collect_output_files(
         {
             "shared_changed_files": [
-                {"path": "docs/report.md", "full_path": "/ws/docs/report.md", "status": "A", "size": "1.2 KB"}
+                {
+                    "path": "docs/report.md",
+                    "full_path": "/ws/docs/report.md",
+                    "status": "A",
+                    "size": "1.2 KB",
+                }
             ],
             "results": [
                 {

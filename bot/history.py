@@ -16,6 +16,7 @@ from typing import Any
 
 _LOCK = threading.Lock()
 _MAX_FIELD_CHARS = 2_000
+_MAX_WORKBENCH_FIELD_CHARS = 24_000
 
 
 def history_path() -> Path:
@@ -29,11 +30,17 @@ def record(event: dict[str, Any]) -> None:
     """Append one dispatch event. Never raises."""
     payload = dict(event)
     payload.setdefault("ts", time.time())
+    is_workbench = payload.get("kind") == "workbench"
     # Keep the file bounded: trim every user/model-controlled long text field.
     for key in ("prompt", "consensus", "result", "review_details", "error"):
         v = payload.get(key)
-        if isinstance(v, str) and len(v) > _MAX_FIELD_CHARS:
-            payload[key] = v[:_MAX_FIELD_CHARS] + "…"
+        limit = (
+            _MAX_WORKBENCH_FIELD_CHARS
+            if is_workbench and key in ("consensus", "review_details")
+            else _MAX_FIELD_CHARS
+        )
+        if isinstance(v, str) and len(v) > limit:
+            payload[key] = v[:limit] + "…"
     line = json.dumps(payload, ensure_ascii=False, default=str)
     try:
         with _LOCK, history_path().open("a", encoding="utf-8") as fh:
@@ -83,17 +90,20 @@ def _prompt_matches(stored: Any, needle: str) -> bool:
 def delete_events(
     items: list[dict[str, Any]] | None = None,
     *,
+    threads: list[str] | None = None,
     clear: bool = False,
 ) -> dict[str, int]:
     """Remove dispatch lines. Does not delete workspace files.
 
-    ``clear`` drops every line. Otherwise each item needs ``ts``. A unique
-    timestamp is enough. If several lines share that timestamp, ``prompt``
-    and ``thread`` pick one; still-ambiguous lines are left in place.
+    ``clear`` drops every line. ``threads`` drops all events matching those
+    non-empty thread IDs. Otherwise each item in ``items`` needs ``ts``. A
+    unique timestamp is enough; if several lines share that timestamp,
+    ``prompt`` and ``thread`` pick one, and still-ambiguous lines stay put.
     """
     path = history_path()
     specs = [item for item in (items or []) if isinstance(item, dict)]
-    if not clear and not specs:
+    thread_set = {str(t).strip() for t in (threads or []) if str(t or "").strip()}
+    if not clear and not specs and not thread_set:
         raise ValueError("沒有要刪除的紀錄")
 
     with _LOCK:
@@ -119,6 +129,11 @@ def delete_events(
 
         drop: set[int] = set()
         ambiguous = 0
+        if thread_set:
+            for i, (_, event) in enumerate(parsed):
+                if isinstance(event, dict) and str(event.get("thread") or "").strip() in thread_set:
+                    drop.add(i)
+
         for spec in specs:
             if spec.get("ts") is None:
                 raise ValueError("刪除需要 ts")
@@ -147,6 +162,72 @@ def delete_events(
         kept_lines = [line for i, (line, _) in enumerate(parsed) if i not in drop]
         _rewrite_history(path, kept_lines)
         return {"removed": len(drop), "kept": len(kept_lines), "ambiguous": ambiguous}
+
+
+def set_archived(
+    items: list[dict[str, Any]] | None = None,
+    *,
+    threads: list[str] | None = None,
+    archived: bool = True,
+) -> dict[str, int]:
+    """Mark matching dispatch events or whole threads as archived/unarchived."""
+    path = history_path()
+    specs = [item for item in (items or []) if isinstance(item, dict)]
+    thread_set = {str(t).strip() for t in (threads or []) if str(t or "").strip()}
+    if not specs and not thread_set:
+        raise ValueError("沒有指定要封存或還原的對話串")
+
+    with _LOCK:
+        try:
+            raw_lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+        except OSError as exc:
+            raise ValueError("讀不到歷史檔") from exc
+
+        parsed: list[tuple[str, dict[str, Any] | None]] = []
+        for line in raw_lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                parsed.append((line, json.loads(stripped)))
+            except json.JSONDecodeError:
+                parsed.append((line, None))
+
+        targets: set[int] = set()
+        if thread_set:
+            for i, (_, event) in enumerate(parsed):
+                if isinstance(event, dict) and str(event.get("thread") or "").strip() in thread_set:
+                    targets.add(i)
+
+        for spec in specs:
+            if spec.get("ts") is None:
+                continue
+            for i, (_, event) in enumerate(parsed):
+                if not isinstance(event, dict) or not _same_ts(event.get("ts"), spec.get("ts")):
+                    continue
+                spec_thread = str(spec.get("thread") or "").strip()
+                if spec_thread and str(event.get("thread") or "") != spec_thread:
+                    continue
+                if not _prompt_matches(event.get("prompt"), str(spec.get("prompt") or "")):
+                    continue
+                targets.add(i)
+
+        out_lines: list[str] = []
+        updated = 0
+        for i, (raw_line, event) in enumerate(parsed):
+            if i in targets and isinstance(event, dict):
+                updated_event = dict(event)
+                if archived:
+                    updated_event["archived"] = True
+                else:
+                    updated_event.pop("archived", None)
+                out_lines.append(json.dumps(updated_event, ensure_ascii=False, default=str))
+                updated += 1
+            else:
+                out_lines.append(raw_line)
+
+        _rewrite_history(path, out_lines)
+        return {"updated": updated, "archived": int(bool(archived))}
 
 
 def _rewrite_history(path: Path, lines: list[str]) -> None:

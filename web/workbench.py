@@ -290,8 +290,14 @@ def update_workbench_models_config(payload: dict[str, Any]) -> dict[str, Any]:
         """使用者勾選結果 → 該 Agent 的權威模型清單。"""
         from core.provider_capabilities import parse_model_ref  # noqa: PLC0415
 
-        agent_id = str(payload.get("agent") or "").strip().lower()
-        if agent_id not in AGENT_MODEL_SPECS:
+        agent_id = str(payload.get("agent") or "").strip()
+        agent_key = agent_id.lower()
+        custom_list = load_custom_agents()
+        custom_match = next(
+            (ca for ca in custom_list if str(ca.get("id") or "") in (agent_id, agent_key)),
+            None,
+        )
+        if agent_key not in AGENT_MODEL_SPECS and custom_match is None:
             raise ValueError(f"未知 Agent: {agent_id!r}")
         raw = payload.get("models")
         if not isinstance(raw, list) or not raw:
@@ -304,24 +310,34 @@ def update_workbench_models_config(payload: dict[str, Any]) -> dict[str, Any]:
         if not refs:
             raise ValueError("勾選的模型 ID 格式無效")
 
-        cur_cfg = get_workbench_models_config()
-        active = str(cur_cfg["models"].get(agent_id) or "").strip()
-        active_still_selected = any(
-            ref == active or parse_model_ref(ref)[1] == parse_model_ref(active)[1]
-            for ref in refs
-        ) if active else True
-        if not active_still_selected:
-            # 當前使用的模型被取消勾選 → 自動切到第一個勾選項
-            new_active = refs[0]
-            spec = AGENT_MODEL_SPECS[agent_id]
-            os.environ[spec["env"]] = new_active
-            updates_by_env[spec["env"]] = new_active
+        if agent_key in AGENT_MODEL_SPECS:
+            cur_cfg = get_workbench_models_config()
+            active = str(cur_cfg["models"].get(agent_key) or "").strip()
+            active_still_selected = (
+                any(
+                    ref == active or parse_model_ref(ref)[1] == parse_model_ref(active)[1]
+                    for ref in refs
+                )
+                if active
+                else True
+            )
+            if not active_still_selected:
+                # 當前使用的模型被取消勾選 → 自動切到第一個勾選項
+                new_active = refs[0]
+                spec = AGENT_MODEL_SPECS[agent_key]
+                os.environ[spec["env"]] = new_active
+                updates_by_env[spec["env"]] = new_active
 
-        model_options_map[agent_id] = refs
-        catalog["model_options"] = model_options_map
-        _save_workbench_catalog(catalog)
-        _persist_env_updates(updates_by_env)
-        return get_workbench_models_config()
+            model_options_map[agent_key] = refs
+            catalog["model_options"] = model_options_map
+            _save_workbench_catalog(catalog)
+            _persist_env_updates(updates_by_env)
+        elif custom_match is not None:
+            custom_match["options"] = refs
+            cur_cmodel = str(custom_match.get("model") or "").strip()
+            if not cur_cmodel or cur_cmodel not in refs:
+                custom_match["model"] = refs[0]
+            save_custom_agents(custom_list)
         return get_workbench_models_config()
 
     if action in ("add_model", "delete_model", "rename_model"):
@@ -560,10 +576,11 @@ def _get_all_provider_specs() -> list[dict[str, Any]]:
     specs: list[dict[str, Any]] = []
     seen_envs: set[str] = set()
     for s in BYOK_PROVIDER_SPECS:
-        if s["env"] in deleted:
+        env_key = str(s["env"])
+        if env_key in deleted:
             continue
         specs.append({**s, "custom": False})
-        seen_envs.add(s["env"])
+        seen_envs.add(env_key)
     for cp in catalog.get("custom_providers") or []:
         if not isinstance(cp, dict):
             continue
@@ -682,6 +699,29 @@ def get_setup_wizard_status() -> dict[str, Any]:
     }
 
 
+def _allowed_provider_envs_map(agent_ids: list[str]) -> dict[str, set[str]]:
+    """Build allowed provider envs per agent, always including user-added custom providers."""
+    all_specs = _get_all_provider_specs()
+    custom_envs = {
+        str(s.get("env") or "").strip().upper()
+        for s in all_specs
+        if s.get("custom") and str(s.get("env") or "").strip() != "TELEGRAM_BOT_TOKEN"
+    }
+    all_llm_envs = {
+        str(s.get("env") or "").strip().upper()
+        for s in all_specs
+        if str(s.get("env") or "").strip() and str(s.get("env") or "").strip() != "TELEGRAM_BOT_TOKEN"
+    }
+    out: dict[str, set[str]] = {}
+    for aid in agent_ids:
+        base = _AGENT_PROVIDER_ENVS.get(aid)
+        if base is not None:
+            out[aid] = set(base) | custom_envs | {"COMMAND_CODE_API_KEY"}
+        else:
+            out[aid] = set(all_llm_envs)
+    return out
+
+
 def get_workbench_capabilities() -> dict[str, Any]:
     """Discover model IDs and thinking modes from connected provider catalogues."""
     from core.provider_capabilities import (  # noqa: PLC0415
@@ -690,15 +730,19 @@ def get_workbench_capabilities() -> dict[str, Any]:
         discover_provider_capabilities,
     )
 
-    env_values = _read_env_file_vars(PROJECT_ROOT / ".env")
+    env_values = dict(_read_env_file_vars(PROJECT_ROOT / ".env"))
+    for k, v in os.environ.items():
+        if k.isupper():
+            env_values[k] = v
     provider_results = discover_provider_capabilities(_get_all_provider_specs(), env_values)
     models_cfg = get_workbench_models_config()
     agents = build_agent_capabilities(models_cfg["models"], provider_results)
+    allowed_map = _allowed_provider_envs_map(list(models_cfg["models"].keys()))
     model_catalog = build_model_catalog(
         models_cfg["models"],
         provider_results,
         models_cfg["options"],
-        _AGENT_PROVIDER_ENVS,
+        allowed_map,
     )
     for agent_id, capability in agents.items():
         capability["model_ref"] = model_catalog["active_model_refs"].get(
@@ -789,18 +833,28 @@ def fetch_agent_model_catalog(payload: dict[str, Any]) -> dict[str, Any]:
     取代「Agent 模型清單自動列舉供應商全部模型」的舊行為：清單只在
     勾選時抓取，使用者勾選的結果（catalog model_options）才是權威清單。
     """
+    from core.custom_agents import load_custom_agents  # noqa: PLC0415
     from core.provider_capabilities import discover_provider_capabilities  # noqa: PLC0415
 
-    agent_id = str(payload.get("agent") or "").strip().lower()
-    if agent_id not in AGENT_MODEL_SPECS:
-        raise ValueError(f"未知 Agent: {agent_id!r}")
-    allowed_envs = _AGENT_PROVIDER_ENVS.get(agent_id) or set()
+    raw_agent = str(payload.get("agent") or "").strip()
+    agent_id = raw_agent.lower()
+    custom_match = next(
+        (ca for ca in load_custom_agents() if str(ca.get("id") or "") in (raw_agent, agent_id)),
+        None,
+    )
+    if agent_id in AGENT_MODEL_SPECS:
+        eff_id = agent_id
+    elif custom_match is not None:
+        eff_id = str(custom_match.get("id") or raw_agent)
+    else:
+        raise ValueError(f"未知 Agent: {raw_agent!r}")
+    allowed_envs = _allowed_provider_envs_map([eff_id]).get(eff_id) or set()
     specs = [dict(s) for s in _get_all_provider_specs() if s["env"] in allowed_envs]
 
     values = dict(_read_env_file_vars(PROJECT_ROOT / ".env"))
     for k, v in os.environ.items():
         if k.isupper():
-            values.setdefault(k, v)
+            values[k] = v
 
     results = discover_provider_capabilities(specs, values, timeout_s=6.0)
     models: list[dict[str, str]] = []
@@ -820,13 +874,16 @@ def fetch_agent_model_catalog(payload: dict[str, Any]) -> dict[str, Any]:
     models.sort(key=lambda x: x["ref"].lower())
 
     cfg = get_workbench_models_config()
+    label = _AGENT_MODEL_LABELS.get(
+        eff_id, str(custom_match.get("name") or eff_id) if custom_match else eff_id
+    )
     return {
         "ok": True,
-        "agent": agent_id,
-        "agent_label": _AGENT_MODEL_LABELS.get(agent_id, agent_id),
+        "agent": eff_id,
+        "agent_label": label,
         "models": models,
-        "selected": list(cfg["options"].get(agent_id) or []),
-        "active": cfg["models"].get(agent_id) or "",
+        "selected": list(cfg["options"].get(eff_id) or []),
+        "active": cfg["models"].get(eff_id) or "",
         "unreachable_providers": unreachable,
     }
 
@@ -1291,6 +1348,17 @@ def get_database_overview(history_items: list[dict[str, Any]] | None = None) -> 
 
     thread_list = [threads[k] for k in sorted(threads, key=lambda k: threads[k]["ts"], reverse=True)]
 
+    from core.document_topics import classify_document, document_sample  # noqa: PLC0415
+
+    for t_entry in thread_list:
+        for meta in t_entry["files"]:
+            auth_p = resolve_downloadable_artifact(meta["full_path"])
+            sample = document_sample(auth_p)
+            topic = classify_document(meta["path"], meta["name"], t_entry["title"], sample)
+            meta["topic_id"] = topic["id"]
+            meta["topic_title"] = topic["title"]
+            meta["classification_reason"] = topic["evidence"]
+
     ungrouped: list[dict[str, Any]] = []
     for art in list_deliverable_artifacts():
         rel = str(art.get("path") or "")
@@ -1298,11 +1366,32 @@ def get_database_overview(history_items: list[dict[str, Any]] | None = None) -> 
             continue
         meta = _artifact_file_meta({**art, "path": rel, "full_path": art.get("full_path") or rel})
         meta["project"] = str(art.get("project") or "")
+        auth_p = resolve_downloadable_artifact(meta["full_path"])
+        sample = document_sample(auth_p)
+        topic = classify_document(meta["path"], meta["name"], "", sample)
+        meta["topic_id"] = topic["id"]
+        meta["topic_title"] = topic["title"]
+        meta["classification_reason"] = topic["evidence"]
         ungrouped.append(meta)
+
+    topics_map: dict[str, dict[str, Any]] = {}
+    for src_file in [f for t in thread_list for f in t["files"]] + ungrouped:
+        tid = str(src_file.get("topic_id") or "other")
+        ttitle = str(src_file.get("topic_title") or "其他文件")
+        grp = topics_map.setdefault(
+            tid, {"id": tid, "title": ttitle, "count": 0, "files": []}
+        )
+        grp["files"].append(src_file)
+        grp["count"] += 1
+    topic_list = sorted(
+        topics_map.values(),
+        key=lambda t: (t["id"] == "other", -int(t["count"]), str(t["title"])),
+    )
 
     return {
         "threads": thread_list,
         "ungrouped": ungrouped,
+        "topics": topic_list,
         "total": sum(t["count"] for t in thread_list) + len(ungrouped),
     }
 

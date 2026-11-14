@@ -130,10 +130,24 @@ def has_any_upstream_key() -> bool:
         "OPENROUTER_API_KEY",
         "ZHIPUAI_API_KEY",
         "GLM_API_KEY",
+        "JUAPI_API_KEY",
+        "NVIDIA_API_KEY",
+        "COMMAND_CODE_API_KEY",
     ):
         val = os.environ.get(k, "").strip()
         if val and not val.startswith("your_"):
             return True
+    try:
+        from web.workbench import _get_all_provider_specs  # noqa: PLC0415
+
+        for spec in _get_all_provider_specs():
+            env_k = str(spec.get("env") or "").strip()
+            if env_k and env_k != "TELEGRAM_BOT_TOKEN":
+                val = os.environ.get(env_k, "").strip()
+                if val and not val.startswith("your_"):
+                    return True
+    except Exception:  # noqa: BLE001
+        pass
     return False
 
 
@@ -351,6 +365,52 @@ def _single_turn_upstream(
     openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
 
     errors: list[str] = []
+
+    # 0. Explicit provider namespace (e.g. JUAPI_API_KEY::model or custom provider)
+    if (
+        provider_env
+        and model_id
+        and provider_env not in {"ZHIPUAI_API_KEY", "GLM_API_KEY", "MINIMAX_API_KEY"}
+    ):
+        explicit_key = os.environ.get(provider_env, "").strip()
+        if explicit_key and not explicit_key.startswith("your_"):
+            base_url = ""
+            try:
+                from web.workbench import _get_all_provider_specs  # noqa: PLC0415
+
+                spec = next(
+                    (s for s in _get_all_provider_specs() if s.get("env") == provider_env),
+                    None,
+                )
+                if spec:
+                    b_env = str(spec.get("base_url_env") or "").strip()
+                    base_url = (
+                        (os.environ.get(b_env, "").strip() if b_env else "")
+                        or str(spec.get("default_base_url") or "").strip()
+                    )
+            except Exception:  # noqa: BLE001
+                base_url = ""
+            if not base_url:
+                guess_env = f"{provider_env.removesuffix('_API_KEY')}_BASE_URL"
+                base_url = os.environ.get(guess_env, "").strip()
+            if base_url and "generativelanguage.googleapis.com" not in base_url.lower():
+                chat_url = base_url.rstrip("/")
+                if not chat_url.endswith("/chat/completions"):
+                    chat_url = f"{chat_url}/chat/completions"
+                res_exp = _try_openai_compat(
+                    url=chat_url,
+                    api_key=explicit_key,
+                    model=model_id,
+                    sys_prompt=sys_prompt,
+                    messages=messages,
+                    timeout_s=timeout_s,
+                    thinking_mode=thinking_mode,
+                    thinking_parameter=thinking_parameter,
+                )
+                if res_exp["ok"]:
+                    res_exp["model"] = model
+                    return res_exp
+                errors.append(f"{provider_env}: {res_exp['error']}")
 
     # 1. If GLM key is configured and model explicitly asks for glm, try GLM first
     if (

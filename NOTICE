@@ -1,0 +1,16 @@
+K.H.A.V.I.S. — Plugin-Based Multi-LLM Router & Collaborative Agent Workbench
+Copyright 2026 K.H.A.V.I.S. Maintainers (kiddhsu5)
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Third-Party Trademarks and SDKs:
+This product includes adapter plugins that interoperate with third-party APIs
+and SDKs including OpenAI, Anthropic (Claude), Google Gemini, MiniMax,
+Zhipu AI (GLM), NVIDIA NIM, OpenRouter, Volcano Engine (Ark), Xiaomi MiMo,
+and Ollama. All third-party product names, logos, and brands are property of
+their respective owners and are used solely for identification and
+interoperability purposes.

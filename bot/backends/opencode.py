@@ -83,6 +83,7 @@ class OpencodeBackend(Backend):
             **os.environ,
             "CI": "1",
             "NONINTERACTIVE": "1",
+            "KHAVIS_MODEL_REF": self._model,
         }
         if envelope.thinking_mode and envelope.thinking_mode.lower() != "auto":
             env["KHAVIS_THINKING_MODE"] = envelope.thinking_mode

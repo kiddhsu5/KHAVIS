@@ -158,7 +158,8 @@ jobs:
 
       - name: "`server` extra must provide a working khavis-serve"
         run: |
-          /tmp/wheelenv/bin/python -m pip install 'khavis[server] @ file://$PWD/'$(ls dist/*.whl | xargs -n1 basename)
+          WHEEL_PATH="$(ls "$PWD"/dist/*.whl | head -n 1)"
+          /tmp/wheelenv/bin/python -m pip install "${WHEEL_PATH}[server]"
           /tmp/wheelenv/bin/khavis-serve --help
           /tmp/wheelenv/bin/python -c "
           from server.openai_api import _call_with_failover

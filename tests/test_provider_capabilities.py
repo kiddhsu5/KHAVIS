@@ -136,7 +136,9 @@ def test_model_catalog_respects_persisted_selection() -> None:
     catalog = build_model_catalog(
         {"opencode": "ZHIPUAI_API_KEY::glm-5.3-flashx"},
         providers,
-        fallback_options={"opencode": ["ZHIPUAI_API_KEY::glm-5.3-flashx", "ZHIPUAI_API_KEY::glm-5"]},
+        fallback_options={
+            "opencode": ["ZHIPUAI_API_KEY::glm-5.3-flashx", "ZHIPUAI_API_KEY::glm-5"]
+        },
         agent_provider_envs={"opencode": {"ZHIPUAI_API_KEY"}},
     )
     assert catalog["options"]["opencode"] == [

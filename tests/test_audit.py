@@ -10,6 +10,7 @@ You may obtain a copy of the License at
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -206,12 +207,28 @@ class TestCli:
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         monkeypatch.delenv("KHAVIS_AUDIT_FILE", raising=False)
+        monkeypatch.setattr("core.env.find_env_file", lambda *a, **kw: None)
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-doctor")
         rc = cli.main(["doctor"])
         out = capsys.readouterr().out
         assert "python" in out
         assert "pools.yaml" in out
-        # Doctor exits 0 when config + discovery succeed in the repo.
+        # Doctor exits 0 when config + discovery succeed and at least one pool is ready.
         assert rc == 0
+
+    def test_doctor_exits_nonzero_without_ready_pools(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.delenv("KHAVIS_AUDIT_FILE", raising=False)
+        monkeypatch.setattr("core.env.find_env_file", lambda *a, **kw: None)
+        for key in list(os.environ):
+            if key.endswith(("_API_KEY", "_KEY", "_TOKEN")) or key == "OLLAMA_HOST":
+                monkeypatch.delenv(key, raising=False)
+        monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")
+        rc = cli.main(["doctor"])
+        out = capsys.readouterr().out
+        assert "pools.yaml" in out
+        assert rc == 1
 
     def test_bare_invocation_shows_help(self, capsys: pytest.CaptureFixture[str]) -> None:
         rc = cli.main([])

@@ -304,7 +304,6 @@ class TestServeLoadsDotenv:
         import os
 
         from core.env import _project_root as real_root
-        from core.env import find_env_file
         from server.openai_api import _router_stack
 
         monkeypatch.setattr("core.env.config_dir", lambda: tmp_path)

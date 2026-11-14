@@ -107,9 +107,7 @@ def _is_deliverable_output_path(rel_path: str) -> bool:
     if suffix not in _DELIVERABLE_EXTS:
         return False
     if len(parts) > 1:
-        if parts[0].lower() not in _DELIVERABLE_DIR_NAMES:
-            return False
-        return True
+        return parts[0].lower() in _DELIVERABLE_DIR_NAMES
     return suffix in _FORMAL_DELIVERY_EXTS
 
 
@@ -293,11 +291,30 @@ async def run_collaborative_workflow(
     previous_context: dict[str, Any] | None = None,
     thinking_mode: str | None = None,
     thinking_parameter: str | None = None,
+    agent_order: list[str] | None = None,
+    lock_order: bool = False,
 ) -> dict[str, Any]:
     """Execute the requested multi-agent collaboration mode and return structured results."""
     mode = (collab_mode or "auto_loop").strip().lower()
-    if mode not in ("auto_loop", "relay", "critique", "parallel"):
+    if mode not in ("auto_loop", "relay", "critique", "parallel", "preempt"):
         mode = "auto_loop"
+
+    raw_order = [str(a).strip() for a in (agent_order or []) if str(a).strip()]
+    raw_agents = [str(a).strip() for a in (agents or []) if str(a).strip()]
+    if raw_order:
+        if raw_agents:
+            agent_set = set(raw_agents)
+            ordered = [a for a in raw_order if a in agent_set]
+            for a in raw_agents:
+                if a not in ordered:
+                    ordered.append(a)
+            agents = ordered if ordered else list(raw_order)
+        else:
+            agents = list(raw_order)
+    else:
+        agents = raw_agents or ["khavis"]
+
+    order_index = {a: idx for idx, a in enumerate(agents)}
 
     contextual_prompt = build_contextual_prompt(prompt, previous_context)
     collaboration_steps: list[dict[str, Any]] = []
@@ -337,7 +354,53 @@ async def run_collaborative_workflow(
         rel_p: _snap_sig(meta) for rel_p, meta in _snap_root_outputs().items()
     }
 
-    if mode == "relay" and len(agents) >= 2:
+    if mode == "preempt":
+        # ------------------------------------------------------------------
+        # MODE: ⚡ Preempt / Ordered Failover Handoff (Agent 1 -> fallback Agent 2 -> ...)
+        # ------------------------------------------------------------------
+        for idx, agent_id in enumerate(agents):
+            step_t0 = time.perf_counter()
+            env = DispatchEnvelope(
+                chat_id=1,
+                prompt=contextual_prompt,
+                only=[agent_id],  # type: ignore[arg-type]
+                capability=capability,
+                workspace_dir=str(shared_dir),
+                thinking_mode=thinking_mode,
+                thinking_parameter=thinking_parameter,
+            )
+            rep = await router.dispatch(env)
+            step_ms = int((time.perf_counter() - step_t0) * 1000)
+            baton_ok = False
+            for r in rep.results:
+                results.append(r)
+                baton_ok = bool(r.ok and (r.text or "").strip())
+                collaboration_steps.append(
+                    {
+                        "stage": f"第 {idx + 1} 棒搶佔執行 ({r.backend})",
+                        "agent": r.backend,
+                        "role": "主棒執行" if idx == 0 else f"第 {idx + 1} 順位接手",
+                        "ok": r.ok,
+                        "latency_ms": r.latency_ms or step_ms,
+                        "summary": (r.text or r.error or "")[:500],
+                    }
+                )
+            if baton_ok:
+                break
+
+        ok_results = [r for r in results if r.ok and (r.text or "").strip()]
+        consensus_text = (
+            ok_results[-1].text if ok_results else (results[-1].error if results else "")
+        )
+        chain_trace = " → ".join(f"{r.backend}({'✓' if r.ok else '✗'})" for r in results)
+        consensus_source = (
+            ok_results[-1].backend
+            if ok_results and len(results) == 1
+            else f"preempt ({chain_trace})"
+        )
+        critique_summary = f"已依排定順序（{' → '.join(agents)}）執行搶佔交接：{chain_trace}。"
+
+    elif mode == "relay" and len(agents) >= 2:
         # ------------------------------------------------------------------
         # MODE 2: ⛓️ Sequential Relay Pipeline (Agent 1 -> Agent 2 -> ...)
         # ------------------------------------------------------------------
@@ -414,14 +477,21 @@ async def run_collaborative_workflow(
         )
         report = await router.dispatch(env)
         stage1_ms = int((time.perf_counter() - t_stage1) * 1000)
-        results = list(report.results)
+        results = sorted(
+            list(report.results),
+            key=lambda r: order_index.get(str(r.backend), 999),
+        )
 
-        for r in results:
+        for idx, r in enumerate(results):
             collaboration_steps.append(
                 {
                     "stage": "階段 1：並發自主實作與探勘",
                     "agent": r.backend,
-                    "role": "獨立工具執行與方案實作",
+                    "role": (
+                        "第 1 棒主責實作"
+                        if (lock_order or raw_order) and idx == 0
+                        else "獨立工具執行與方案實作"
+                    ),
                     "ok": r.ok,
                     "latency_ms": r.latency_ms or stage1_ms,
                     "summary": (r.text or r.error or "")[:400],
@@ -429,6 +499,7 @@ async def run_collaborative_workflow(
             )
 
         ok_results = [r for r in results if r.ok and (r.text or "").strip()]
+        prefer_ordered_holder = bool(lock_order or raw_order)
 
         if (
             mode == "parallel"
@@ -436,10 +507,14 @@ async def run_collaborative_workflow(
             or (len(ok_results) < 2 and mode != "critique")
             or not has_any_upstream_key()
         ):
-            consensus_text = report.consensus or (ok_results[0].text if ok_results else "")
-            consensus_source = report.consensus_source or (
-                ok_results[0].backend if ok_results else ""
-            )
+            if prefer_ordered_holder and ok_results:
+                consensus_text = ok_results[0].text
+                consensus_source = ok_results[0].backend
+            else:
+                consensus_text = report.consensus or (ok_results[0].text if ok_results else "")
+                consensus_source = report.consensus_source or (
+                    ok_results[0].backend if ok_results else ""
+                )
             critique_summary = "各 Agent 已並發獨立完成執行。"
         else:
             # ------------------------------------------------------------------
@@ -452,8 +527,9 @@ async def run_collaborative_workflow(
                 snippet = (r.text or "").strip()
                 if len(snippet) > 2500:
                     snippet = snippet[:2500] + "\n...[截斷]"
+                role_tag = " [第 1 棒主責]" if (prefer_ordered_holder and idx == 0) else ""
                 candidates_dump.append(
-                    f"=== Agent #{idx + 1} [{r.backend} ({r.model})] 實作與執行結果 ===\n{snippet}"
+                    f"=== Agent #{idx + 1}{role_tag} [{r.backend} ({r.model})] 實作與執行結果 ===\n{snippet}"
                 )
 
             diff_now = collect_directory_diff(shared_dir)
@@ -508,8 +584,12 @@ async def run_collaborative_workflow(
                     }
                 )
             else:
-                consensus_text = report.consensus or ok_results[0].text
-                consensus_source = report.consensus_source or ok_results[0].backend
+                if prefer_ordered_holder and ok_results:
+                    consensus_text = ok_results[0].text
+                    consensus_source = ok_results[0].backend
+                else:
+                    consensus_text = report.consensus or ok_results[0].text
+                    consensus_source = report.consensus_source or ok_results[0].backend
                 critique_summary = "已由多 Agent 並發完成並選取最佳執行結果。"
 
     clean_consensus, review_details = _split_result_and_review(
@@ -623,6 +703,8 @@ async def run_collaborative_workflow(
     return {
         "ok": True,
         "collab_mode": mode,
+        "agent_order": agents,
+        "lock_order": bool(lock_order),
         "consensus": clean_consensus,
         "review_details": review_details,
         "consensus_source": consensus_source,

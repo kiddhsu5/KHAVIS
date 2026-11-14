@@ -9,7 +9,6 @@ from core.coding_plan_quota import (
 )
 from core.quota_tracker import QuotaTracker
 
-
 MINIMAX = {
     "model_remains": [
         {

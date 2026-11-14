@@ -84,7 +84,7 @@ def main() -> int:
         sys.path.insert(0, str(khavis_home))
     _load_dotenv(khavis_home)
 
-    model = os.environ.get(env_key, default_model)
+    model = os.environ.get("KHAVIS_MODEL_REF") or os.environ.get(env_key, default_model)
     thinking_mode = os.environ.get("KHAVIS_THINKING_MODE") or None
 
     prompt_parts: list[str] = []
@@ -95,7 +95,9 @@ def main() -> int:
             i += 1
             continue
         if a in ("-m", "--model") and i + 1 < len(args):
-            model = args[i + 1]
+            cli_model = args[i + 1]
+            if "::" not in model or not model.endswith(f"::{cli_model}"):
+                model = cli_model
             i += 2
             continue
         if a in ("--output-format", "--effort") and i + 1 < len(args):

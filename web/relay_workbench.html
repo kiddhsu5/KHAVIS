@@ -35,8 +35,10 @@
     font: 14px/1.55 var(--font);
     background: var(--stage);
     color: var(--fg);
+    height: 100dvh;
     display: grid;
     grid-template-columns: var(--side-w) minmax(0, 1fr) var(--rail-w);
+    grid-template-rows: minmax(0, 1fr);
     overflow: hidden;
   }
   button, input, textarea, select { font: inherit; color: inherit; }
@@ -52,6 +54,8 @@
     flex-direction: column;
     min-width: 0;
     min-height: 0;
+    height: 100%;
+    overflow: hidden;
   }
   .side { border-right: 1px solid var(--line); }
   .rail { border-left: 1px solid var(--line); background: var(--app); }
@@ -107,7 +111,7 @@
     border-radius: 999px; padding: 2px 8px; font-size: 11px; background: transparent;
   }
   .chip.on { color: var(--fg); border-color: var(--line2); background: var(--card); }
-  .list { flex: 1; overflow: auto; padding: 0 8px 12px; }
+  .list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 8px 12px; }
   .item {
     width: 100%; text-align: left; border: 1px solid transparent;
     background: transparent; border-radius: 10px; padding: 8px 8px; margin-bottom: 2px;
@@ -133,9 +137,9 @@
   .mini-q b { font-weight: 600; }
   .mini-q span { font-family: var(--mono); font-size: 11px; color: var(--fg2); }
 
-  .main { min-width: 0; display: flex; flex-direction: column; background: var(--stage); }
+  .main { min-width: 0; min-height: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column; background: var(--stage); }
   .top {
-    height: 48px; display: flex; align-items: center; gap: 8px;
+    height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 8px;
     padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--app);
   }
   .crumb { font-size: 13px; color: var(--fg2); }
@@ -146,7 +150,7 @@
     border: 1px solid var(--line); background: var(--panel); color: var(--fg2); font-size: 12px;
   }
   .ghost:hover { color: var(--fg); border-color: var(--line2); }
-  .scroll { flex: 1; overflow: auto; padding: 18px 22px 8px; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 18px 22px 28px; }
   .page { display: none; max-width: 760px; margin: 0 auto; }
   .page.on { display: block; }
   .kicker { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
@@ -235,10 +239,10 @@
   .go:hover:not(:disabled) { filter: brightness(1.06); }
 
   .rail-h {
-    height: 48px; display: flex; align-items: center; gap: 8px;
+    height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 8px;
     padding: 0 14px; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 650;
   }
-  .rail-body { flex: 1; overflow: auto; padding: 12px; }
+  .rail-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px; }
   .step-row {
     display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px;
     padding: 8px 0; border-bottom: 1px solid var(--line);
@@ -306,17 +310,21 @@
       <p><span class="dot" id="live-dot"></span><span id="node-label">額度交接台</span></p>
     </div>
   </div>
-  <button class="new-task" id="btn-new" type="button">＋ 新工作任務</button>
+  <button class="new-task" id="btn-new" type="button">＋ 新工作任務（新對話串）</button>
   <nav class="nav">
     <button class="on" type="button" data-page="handoff">交接<span class="meta" id="nav-risk">—</span></button>
     <button type="button" data-page="thread">對話<span class="meta" id="nav-turns">0</span></button>
-    <button type="button" data-page="rules">規則</button>
+    <button type="button" data-page="rules">規則与審批<span class="meta" id="nav-kavis-gov">v2.1</span></button>
+    <a href="/agents" class="ghost" style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:10px;font-size:12.5px;color:var(--fg2);border:1px solid var(--line);margin-top:4px">
+      <span>🤖 供應商與模型</span><span class="meta">/agents ↗</span>
+    </a>
   </nav>
   <div class="hist-head">HISTORY <button type="button" class="hist-clear" id="btn-clear-history">清除</button></div>
   <div class="filters">
     <button class="chip on" type="button" data-filter="all">全部</button>
     <button class="chip" type="button" data-filter="ok">完成</button>
     <button class="chip" type="button" data-filter="fail">失敗</button>
+    <button class="chip" type="button" data-filter="archived">封存</button>
   </div>
   <div class="list" id="history"></div>
   <div class="side-foot" id="foot"></div>
@@ -326,9 +334,12 @@
   <header class="top">
     <div class="crumb">工作台 / <b id="crumb">額度交接</b></div>
     <div class="spacer"></div>
+    <a class="ghost" href="/workbench" style="display:inline-flex;align-items:center;border-color:var(--fg2);color:var(--fg)">⚡ 額度交接台</a>
+    <a class="ghost" href="/workbench-c" id="btn-legacy" style="display:inline-flex;align-items:center">💬 任務工作台</a>
+    <a class="ghost" href="/agents" id="btn-agents" style="display:inline-flex;align-items:center">🤖 Agent 與模型</a>
+    <a class="ghost" href="/database" id="btn-database" style="display:inline-flex;align-items:center">📚 文件庫</a>
     <button class="ghost" id="btn-rail" type="button">交接鏈</button>
     <button class="ghost" id="btn-refresh" type="button">重新整理</button>
-    <button class="ghost" id="btn-legacy" type="button">舊版工作台</button>
   </header>
   <div class="scroll">
     <div class="page on" id="page-handoff">
@@ -336,7 +347,10 @@
       <div id="alert"></div>
       <div class="lane">
         <div class="card">
-          <h3>目前持有</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <h3 style="margin:0">目前持有（第 1 棒）</h3>
+            <button type="button" class="icon-btn" id="btn-lock-order" title="切換鎖定順序或依剩餘額度自動排鏈">⚡ 自動排鏈</button>
+          </div>
           <div class="sub" id="holder-sub">尚未排鏈。</div>
           <div class="who">
             <div class="avatar" id="holder-av">—</div>
@@ -349,10 +363,17 @@
               <div class="state info" id="holder-state">待觀測</div>
             </div>
           </div>
+          <div class="field" style="margin-top:8px">
+            <label for="holder-select">指定目前持有 Agent（第 1 棒）</label>
+            <select id="holder-select" aria-label="指定目前持有 Agent"></select>
+          </div>
         </div>
         <div class="card">
-          <h3>下一位接手</h3>
-          <div class="sub" id="next-sub">需要另一個 coding plan，而且剩餘額度高於門檻。</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <h3 style="margin:0">下一位接手（第 2 棒）</h3>
+            <button type="button" class="icon-btn" id="btn-swap-holders" title="對調第 1 棒與第 2 棒">⇄ 對調棒次</button>
+          </div>
+          <div class="sub" id="next-sub">可自由指定接手的下一位 Agent。</div>
           <div class="who">
             <div class="avatar" id="next-av">—</div>
             <div style="flex:1;min-width:0">
@@ -361,9 +382,14 @@
             </div>
             <div class="state info" id="next-state">候補</div>
           </div>
+          <div class="field" style="margin-top:8px">
+            <label for="next-select">指定下一位接手 Agent（第 2 棒）</label>
+            <select id="next-select" aria-label="指定下一位接手 Agent"></select>
+          </div>
         </div>
       </div>
       <div class="note" id="gap-note"></div>
+      <div id="continue-banner" style="display:none;margin-top:10px"></div>
       <div class="turns" id="turns"></div>
     </div>
 
@@ -395,6 +421,14 @@
           <label for="token">Console Token</label>
           <input class="textin" id="token" type="password" autocomplete="off" placeholder="只在要寫入預設或同源派工被拒時才需要">
         </div>
+      </div>
+      <div class="card" id="kavis-gov-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <h3 style="margin:0">🛡️ K.A.V.I.S. v2.1 正交雙軸治理與審批中心 (L0–L4 × W0–W2)</h3>
+          <button type="button" class="icon-btn" id="btn-refresh-gov">重新同步</button>
+        </div>
+        <p class="sub" id="kavis-gov-meta" style="margin:4px 0 10px">連線至本機 K.A.V.I.S. Hub 同步雙軸治理、L2/L3 審批卡與夜間演化提案...</p>
+        <div id="kavis-gov-body" style="font-size:12.5px;color:var(--fg2)">載入中…</div>
       </div>
     </div>
   </div>
@@ -436,8 +470,11 @@
       <div class="pack" id="pack"></div>
     </div>
     <div class="card" style="box-shadow:none">
-      <h3>這一棒的模型</h3>
-      <div class="sub" id="model-note">下拉選的是該 agent 已登錄的模型。顯示時會去掉金鑰環境變數前綴。</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+        <h3 style="margin:0">這一棒的模型</h3>
+        <a href="/agents" class="icon-btn" style="display:inline-flex;align-items:center" title="新增供應商金鑰或從供應商抓取模型清單">🤖 供應商與模型設定 ↗</a>
+      </div>
+      <div class="sub" id="model-note" style="margin-top:4px">下拉選的是該 agent 已登錄的模型。顯示時會去掉金鑰環境變數前綴。</div>
       <div id="model-editors"></div>
     </div>
   </div>
@@ -560,7 +597,9 @@ function savePrefs() {
     extraOptions: STATE.extraOptions,
     threshold: STATE.threshold,
     lockOrder: STATE.lockOrder,
-    pack: STATE.pack
+    pack: STATE.pack,
+    continueFrom: STATE.continueFrom || null,
+    activeId: STATE.activeId || null
   };
   try { localStorage.setItem(STORE, JSON.stringify(data)); } catch { /* quota full is non-fatal */ }
 }
@@ -719,17 +758,22 @@ function samePlanIssue(views) {
 
 function validate(views) {
   const issues = [];
+  if (!views.length) issues.push("請至少選擇一位 Agent");
+  return issues;
+}
+
+function advisories(views) {
+  const notes = [];
   const missing = Object.entries(STATE.pack).filter(([, on]) => !on).map(([k]) => k);
-  if (missing.length) issues.push("交接包不完整");
-  if (!views.length) issues.push("還沒有 agent");
+  if (missing.length) notes.push("交接包有部分未勾選，可能少傳遞部分欄位。");
   if (STATE.workflow === "preempt" || STATE.workflow === "relay") {
     const plans = new Set(views.map((v) => v.plan).filter(Boolean));
-    if (views.length < 2) issues.push("至少要兩棒");
-    else if (plans.size < 2) issues.push("兩棒落在同一個或未觀測的計畫，接不了額度");
-    if (views.some((v) => v.q.observed && v.q.ratio <= STATE.threshold)) issues.push("鏈上有低於門檻的計畫");
-    if (views.some((v) => !v.q.observed)) issues.push("鏈上有額度未觀測的 agent");
+    if (views.length < 2) notes.push("目前僅選 1 棒，將單棒執行；若需交接請選第 2 棒。");
+    else if (plans.size < 2) notes.push("兩棒落在同一個或未觀測的計畫，可執行但不會跨計畫分攤額度。");
+    if (views.some((v) => v.q.observed && v.q.ratio <= STATE.threshold)) notes.push("鏈上有低於門檻的計畫，若已鎖定順序仍會按指定順序執行。");
+    if (views.some((v) => !v.q.observed)) notes.push("鏈上有額度未觀測的 Agent，已依您指定的棒次排入。");
   }
-  return issues;
+  return notes;
 }
 
 function workflowLabel(mode) {
@@ -779,7 +823,6 @@ function renderChain() {
           <button type="button" class="icon-btn" data-move="up" data-id="${esc(v.agent.id)}">上移</button>
           <button type="button" class="icon-btn" data-move="down" data-id="${esc(v.agent.id)}">下移</button>
           <button type="button" class="icon-btn" data-remove="${esc(v.agent.id)}">移出</button>
-          ${STATE.lockOrder ? "" : ""}
         </div>
       </div>
     </div>`;
@@ -822,8 +865,8 @@ function renderHolders() {
   $("holder-state").className = "state " + hr.cls;
   $("holder-state").textContent = hr.text;
   $("holder-sub").textContent = holder
-    ? (holder.q.label + (holder.plan ? "" : "。這一棒不能靠未觀測額度保證做完。"))
-    : "點下方 agent 加入鏈，或維持提前交接讓系統依剩餘額度排。";
+    ? (holder.q.label + (STATE.lockOrder ? " · 🔒 已鎖定棒次順序" : ""))
+    : "可用下方選單指定第 1 棒，或點下方晶片加入鏈。";
   $("next-name").textContent = next ? next.agent.name : "尚未選出";
   $("next-av").textContent = next ? next.agent.name.slice(0, 1) : "—";
   $("next-model").textContent = next ? cleanModel(next.model) : "—";
@@ -831,19 +874,79 @@ function renderHolders() {
   $("next-state").textContent = next ? nr.text : "候補";
   $("next-sub").textContent = next
     ? next.q.label
-    : "需要另一個 coding plan，而且剩餘額度高於門檻。";
+    : "直接在下方選單指定接手的下一位 Agent。";
   $("nav-risk").textContent = holder ? hr.text : "—";
+
+  const lockBtn = $("btn-lock-order");
+  if (lockBtn) {
+    lockBtn.textContent = STATE.lockOrder ? "🔒 已鎖定順序" : "⚡ 自動排鏈";
+  }
+
+  const candidateAgents = STATE.agents.filter((a) => ready(a) || STATE.order.includes(a.id));
+  const holderSel = $("holder-select");
+  if (holderSel) {
+    const curHolderId = holder ? holder.agent.id : "";
+    holderSel.innerHTML = `<option value="">— 選擇第 1 棒持有者 —</option>` + candidateAgents.map((a) => {
+      const v = viewOf(a);
+      const qTxt = v.q.observed ? ` (${fmtPct(v.q.ratio)})` : "";
+      return `<option value="${esc(a.id)}"${a.id === curHolderId ? " selected" : ""}>${esc(a.name)} · ${esc(cleanModel(v.model))}${esc(qTxt)}</option>`;
+    }).join("");
+  }
+  const nextSel = $("next-select");
+  if (nextSel) {
+    const curHolderId = holder ? holder.agent.id : "";
+    const curNextId = next ? next.agent.id : "";
+    nextSel.innerHTML = `<option value="">— 不指定第 2 棒（僅單棒） —</option>` + candidateAgents.filter((a) => a.id !== curHolderId).map((a) => {
+      const v = viewOf(a);
+      const qTxt = v.q.observed ? ` (${fmtPct(v.q.ratio)})` : "";
+      return `<option value="${esc(a.id)}"${a.id === curNextId ? " selected" : ""}>${esc(a.name)} · ${esc(cleanModel(v.model))}${esc(qTxt)}</option>`;
+    }).join("");
+  }
 
   const dups = samePlanIssue(views);
   const issues = validate(views);
+  const notes = advisories(views);
   const bits = [];
-  if (dups.length) bits.push(`<strong>同計畫不能互接額度。</strong> ${esc(dups.join("、"))} 上有多支 CLI，交接不會增加這個計畫的剩餘量。`);
-  if (STATE.workflow === "preempt") {
-    bits.push("提前交接只在啟動前排棒，並以 relay 把上一棒輸出交給下一棒。單一 CLI 呼叫進行中，現有後端不會因門檻中途凍結。");
-  }
+  if (dups.length) bits.push(`<strong>同計畫提醒：</strong> ${esc(dups.join("、"))} 上有多支 CLI。`);
+  if (notes.length) bits.push(notes.map(esc).join(" "));
   if (!STATE.sameOrigin) bits.push("現在是快照預覽，執行不會送到雲端。");
-  $("gap-note").innerHTML = bits.length ? bits.join("<br>") : "鏈上的計畫彼此不同，而且都高於門檻。";
-  const hint = issues.length ? issues.join(" · ") : `${workflowLabel(STATE.workflow)} · ${views.map((v) => v.agent.name).join(" → ") || "尚未選 agent"}`;
+  $("gap-note").innerHTML = bits.length ? bits.join("<br>") : "已依排定棒次就緒，可隨時執行或調整下一位接手者。";
+
+  const banner = $("continue-banner");
+  if (banner) {
+    if (STATE.continueFrom && STATE.continueFrom.thread) {
+      const nextStep = (Number(STATE.continueFrom.step) || 1) + 1;
+      const prevSnippet = String(STATE.continueFrom.prompt || "").replace(/\s+/g, " ").slice(0, 48);
+      banner.style.display = "block";
+      banner.innerHTML = `<div class="card" style="padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div style="min-width:0;font-size:12px">
+          <strong>🔗 目前對話串：${esc(STATE.continueFrom.thread)}（即將執行第 ${nextStep} 輪）</strong>
+          <div class="sub" style="margin-top:2px">接續自：「${esc(prevSnippet)}」</div>
+        </div>
+        <button type="button" class="icon-btn" id="btn-cancel-continue">✕ 開始新對話</button>
+      </div>`;
+      const cancelBtn = $("btn-cancel-continue");
+      if (cancelBtn) {
+        cancelBtn.onclick = () => {
+          STATE.continueFrom = null;
+          STATE.activeId = null;
+          STATE.turns = [];
+          renderAll();
+          toast("已切換為全新對話串（第 1 輪）。");
+        };
+      }
+    } else {
+      banner.style.display = "none";
+      banner.innerHTML = "";
+    }
+  }
+
+  const contTag = STATE.continueFrom && STATE.continueFrom.thread
+    ? ` · 接續 ${STATE.continueFrom.thread} 第 ${(Number(STATE.continueFrom.step) || 1) + 1} 輪`
+    : " · ✨ 新對話（第 1 輪）";
+  const hint = issues.length
+    ? issues.join(" · ")
+    : `${workflowLabel(STATE.workflow)} · ${views.map((v) => v.agent.name).join(" → ") || "尚未選 agent"}${contTag}`;
   $("composer-hint").textContent = hint;
   $("btn-go").disabled = STATE.busy || issues.length > 0;
   $("btn-go").textContent = STATE.busy ? "執行中" : (STATE.workflow === "preempt" ? "依此鏈執行" : "送出");
@@ -858,25 +961,125 @@ function renderFoot() {
   $("foot").innerHTML = `<div class="row"><span>可自動交接</span><span>${usable} 棒</span></div>${observed || `<div class="sub">沒有已回報的 coding plan。</div>`}`;
 }
 
+const LEGACY_THREAD_WINDOW_SEC = 1800;
+
+function buildThreads() {
+  const asc = STATE.history.slice().sort((a, b) => Number(a.ts || 0) - Number(b.ts || 0));
+  const lastByProj = Object.create(null);
+  for (const h of asc) {
+    const proj = String(h.project || "shared-app").trim() || "shared-app";
+    const ts = Number(h.ts || 0);
+    if (h.thread) {
+      h._threadKey = String(h.thread);
+      lastByProj[proj] = { key: h._threadKey, ts };
+    } else {
+      const prev = lastByProj[proj];
+      if (prev && ts > 0 && prev.ts > 0 && Math.abs(ts - prev.ts) <= LEGACY_THREAD_WINDOW_SEC) {
+        h._threadKey = prev.key;
+        lastByProj[proj] = { key: prev.key, ts };
+      } else {
+        const key = ts > 0 ? `legacy-${proj}-${Math.floor(ts / LEGACY_THREAD_WINDOW_SEC)}` : `legacy-${h.ts || Math.random()}`;
+        h._threadKey = key;
+        if (ts > 0) lastByProj[proj] = { key, ts };
+      }
+    }
+  }
+  const map = new Map();
+  for (const h of asc) {
+    const key = h._threadKey || h.thread || String(h.ts || "");
+    if (!map.has(key)) {
+      map.set(key, {
+        id: key,
+        turns: [],
+        title: String(h.prompt || "未命名任務").replace(/\s+/g, " ").slice(0, 60),
+        project: h.project || "shared-app",
+        archived: Boolean(h.archived),
+        ok: h.ok !== false,
+        latestTs: Number(h.ts || 0),
+        dispatched_at: h.dispatched_at || "",
+        backends: []
+      });
+    }
+    const th = map.get(key);
+    th.turns.push(h);
+    if (h.archived) th.archived = true;
+    th.ok = h.ok !== false;
+    if (Number(h.ts || 0) >= th.latestTs) {
+      th.latestTs = Number(h.ts || 0);
+      th.dispatched_at = h.dispatched_at || th.dispatched_at;
+    }
+    for (const b of (h.backends || [])) {
+      if (b && !th.backends.includes(b)) th.backends.push(b);
+    }
+  }
+  for (const th of map.values()) {
+    th.turns.sort((a, b) => {
+      const sa = Number(a.step || 0), sb = Number(b.step || 0);
+      if (sa > 0 && sb > 0 && sa !== sb) return sa - sb;
+      return Number(a.ts || 0) - Number(b.ts || 0);
+    });
+    if (th.turns[0]?.prompt) {
+      th.title = String(th.turns[0].prompt).replace(/\s+/g, " ").slice(0, 60);
+    }
+  }
+  return [...map.values()].sort((a, b) => b.latestTs - a.latestTs);
+}
+
+function continueFromTurn(h) {
+  if (!h) return;
+  const tid = h.thread || h._threadKey || "";
+  const step = Number(h.step) || 1;
+  STATE.continueFrom = {
+    prompt: h.prompt || "",
+    consensus: String(h.consensus || h.review_details || "").slice(0, 3000),
+    thread: tid,
+    step
+  };
+  STATE.activeId = tid || h.ts;
+  savePrefs();
+  showPage("handoff");
+  renderAll();
+  $("prompt").focus();
+  toast(`已設定從第 ${step} 輪接續對話（對話串 ${tid || "当前"}）。`);
+}
+
+function renderTurnFiles(files) {
+  if (!Array.isArray(files) || !files.length) return "";
+  return `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">` + files.map((f) => {
+    const p = String(f.path || f.full_path || "");
+    const name = p.split("/").pop() || p;
+    return `<a class="icon-btn" style="display:inline-flex;align-items:center;gap:4px" href="/api/workbench/artifacts/download?path=${encodeURIComponent(p)}" download="${esc(name)}">📎 ${esc(name)}</a>`;
+  }).join("") + `</div>`;
+}
+
 function renderHistory() {
-  const items = STATE.history.filter((h) => {
-    if (STATE.filter === "ok") return h.ok;
-    if (STATE.filter === "fail") return h.ok === false;
+  const histEl = $("history");
+  const prevScroll = histEl ? histEl.scrollTop : 0;
+  const allThreads = buildThreads();
+  const threads = allThreads.filter((th) => {
+    if (STATE.filter === "archived") return th.archived;
+    if (th.archived) return false;
+    if (STATE.filter === "ok") return th.ok;
+    if (STATE.filter === "fail") return th.ok === false;
     return true;
   });
-  $("history").innerHTML = items.length ? items.map((h) => {
-    const idx = STATE.history.indexOf(h);
-    const title = String(h.prompt || "未命名任務").replace(/\s+/g, " ").slice(0, 42);
-    const who = (h.backends || []).slice(0, 3).join(" → ");
+  const activeKey = (STATE.continueFrom && STATE.continueFrom.thread) || STATE.activeId || "";
+  histEl.innerHTML = threads.length ? threads.map((th) => {
+    const who = th.backends.slice(0, 3).join(" → ");
+    const isOn = String(th.id) === String(activeKey);
+    const archTitle = th.archived ? "取消封存" : "封存對話串";
+    const archAction = th.archived ? "unarchive" : "archive";
     return `<div class="item-row">
-      <button type="button" class="item ${String(h.ts) === String(STATE.activeId) ? "on" : ""}" data-ts="${esc(h.ts)}">
-        <div class="t">${esc(title)}</div>
-        <div class="s">${h.ok ? "完成" : "失敗"}${who ? " · " + esc(who) : ""}</div>
+      <button type="button" class="item ${isOn ? "on" : ""}" data-thread="${esc(th.id)}">
+        <div class="t">${esc(th.title)}</div>
+        <div class="s">${th.turns.length} 輪 · ${th.ok ? "完成" : "失敗"}${who ? " · " + esc(who) : ""}</div>
       </button>
-      <button type="button" class="item-x" data-delete-idx="${idx}" title="刪除這筆">×</button>
+      <button type="button" class="item-x" data-archive-thread="${esc(th.id)}" data-archive-mode="${archAction}" title="${archTitle}" style="opacity:0.75">📦</button>
+      <button type="button" class="item-x" data-delete-thread="${esc(th.id)}" title="刪除整串對話">×</button>
     </div>`;
-  }).join("") : `<p class="sub" style="padding:8px">沒有歷史。</p>`;
-  $("nav-turns").textContent = String(STATE.history.length);
+  }).join("") : `<p class="sub" style="padding:8px">沒有對話紀錄。</p>`;
+  histEl.scrollTop = prevScroll;
+  $("nav-turns").textContent = String(allThreads.filter((t) => !t.archived).length);
 }
 
 function renderPack() {
@@ -893,8 +1096,38 @@ function renderPack() {
 }
 
 function renderTurns() {
+  const allThreads = buildThreads();
+  const activeThreadId = (STATE.continueFrom && STATE.continueFrom.thread) || STATE.activeId || "";
+  const activeThread = activeThreadId ? allThreads.find((t) => String(t.id) === String(activeThreadId)) : null;
+
+  if (activeThread && activeThread.turns.length) {
+    const html = activeThread.turns.map((h, idx) => {
+      const stepNum = h.step || (idx + 1);
+      const who = (h.backends || []).join(" → ") || h.consensus_source || "Agent";
+      const ans = h.consensus || h.review_details || "（無文字輸出）";
+      const extraReview = (h.consensus && h.review_details && h.review_details !== h.consensus)
+        ? `<details style="margin-top:8px;border-top:1px dashed var(--line);padding-top:6px"><summary class="sub" style="cursor:pointer">展開交叉審查與執行明細</summary><pre style="margin-top:6px;color:var(--fg2)">${esc(String(h.review_details))}</pre></details>`
+        : "";
+      return `<div class="bubble user">
+        <div class="meta">第 ${stepNum} 輪提問 · ${esc(h.dispatched_at || "")}</div>
+        <pre>${esc(h.prompt || "")}</pre>
+      </div>
+      <div class="bubble">
+        <div class="meta" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span>第 ${stepNum} 輪成果 · ${esc(who)} · ${esc(h.collab_mode || "")}</span>
+          <button type="button" class="icon-btn" data-continue-ts="${esc(h.ts)}" title="從此輪接續對話（帶入該輪指令與成果）">↳ 從此接續</button>
+        </div>
+        <pre>${esc(String(ans))}</pre>
+        ${extraReview}
+        ${renderTurnFiles(h.output_files)}
+      </div>`;
+    }).join("");
+    $("turns").innerHTML = html;
+    return;
+  }
+
   if (!STATE.turns.length) {
-    $("turns").innerHTML = `<p class="sub">還沒有這一輪的對話。寫下工作後，會按右側的鏈執行。</p>`;
+    $("turns").innerHTML = `<p class="sub">還沒有這一輪的對話。寫下工作後，會按右側的鏈執行；同一對話串的所有輪次會自動合併於此。</p>`;
     return;
   }
   $("turns").innerHTML = STATE.turns.map((t) =>
@@ -944,8 +1177,45 @@ function toggleAgent(id) {
   }
   if (STATE.order.includes(id)) STATE.order = STATE.order.filter((x) => x !== id);
   else STATE.order = STATE.order.concat(id);
-  if (STATE.workflow === "preempt") STATE.lockOrder = true;
+  STATE.lockOrder = true;
   renderAll();
+}
+
+function setBatonSlot(slotIndex, agentId) {
+  const cur = STATE.order.slice();
+  if (!agentId) {
+    if (slotIndex < cur.length) cur.splice(slotIndex, 1);
+    STATE.order = cur;
+    STATE.lockOrder = true;
+    renderAll();
+    return;
+  }
+  const without = cur.filter((id) => id !== agentId);
+  if (slotIndex <= 0) {
+    without.unshift(agentId);
+  } else if (slotIndex >= without.length) {
+    without.push(agentId);
+  } else {
+    without.splice(slotIndex, 0, agentId);
+  }
+  STATE.order = without;
+  STATE.lockOrder = true;
+  renderAll();
+}
+
+function swapTopHolders() {
+  if (STATE.order.length < 2) {
+    toast("需要至少兩棒才能對調。");
+    return;
+  }
+  const next = STATE.order.slice();
+  const tmp = next[0];
+  next[0] = next[1];
+  next[1] = tmp;
+  STATE.order = next;
+  STATE.lockOrder = true;
+  renderAll();
+  toast(`已對調棒次：${next.slice(0, 2).join(" ⇄ ")}`);
 }
 
 function move(id, dir) {
@@ -998,13 +1268,23 @@ async function dispatchTask() {
   const views = selectedViews();
   const issues = validate(views);
   if (issues.length) { toast(issues.join("。")); return; }
+  const orderedIds = views.map((v) => v.agent.id);
   const payload = {
     prompt: decoratePrompt(prompt, views),
-    agents: views.map((v) => v.agent.id),
+    user_prompt: prompt,
+    agents: orderedIds,
+    order: orderedIds,
+    agent_order: orderedIds,
+    lockOrder: Boolean(STATE.lockOrder),
+    lock_order: Boolean(STATE.lockOrder),
+    workflow: STATE.workflow,
     agent_models: Object.fromEntries(views.map((v) => [v.agent.id, v.model])),
     collab_mode: collabMode(STATE.workflow)
   };
-  if (STATE.continueFrom) payload.previous_context = STATE.continueFrom;
+  if (STATE.continueFrom) {
+    payload.previous_context = STATE.continueFrom;
+    if (STATE.continueFrom.thread) payload.thread = STATE.continueFrom.thread;
+  }
   if (!STATE.sameOrigin) {
     STATE.turns.push({
       role: "user",
@@ -1030,7 +1310,7 @@ async function dispatchTask() {
     STATE.turns.push({
       role: "system",
       meta: (data.collab_mode || payload.collab_mode) + " · " + ((data.results || []).length || views.length) + " 棒",
-      text: String(text).slice(0, 4000)
+      text: String(text)
     });
     STATE.continueFrom = {
       prompt,
@@ -1038,8 +1318,11 @@ async function dispatchTask() {
       thread: data.thread || "",
       step: data.step || 1
     };
-    toast("這一輪完成。下一輪會帶上交接上下文。");
-    refresh();
+    STATE.activeId = data.thread || STATE.activeId;
+    $("prompt").value = "";
+    savePrefs();
+    toast(`已完成第 ${data.step || 1} 輪（對話串 ${data.thread || ""}）。下一輪將自動接續同一對話串。`);
+    await refresh();
   } catch (err) {
     STATE.turns.push({ role: "system", meta: "未完成", text: String(err.message || err) });
     toast("派工失敗：" + (err.message || "未知錯誤"));
@@ -1078,6 +1361,9 @@ function applyData(quota, agents, history, source) {
   }
   STATE.order = STATE.order.filter((id) => agentById(id));
   if (!STATE.order.length && STATE.workflow === "preempt" && !STATE.lockOrder) applyAutoChain();
+  if (!STATE.order.length && STATE.agents.length) {
+    STATE.order = STATE.agents.filter(ready).slice(0, 2).map((a) => a.id);
+  }
 }
 
 async function refresh() {
@@ -1102,28 +1388,46 @@ async function refresh() {
   renderAll();
 }
 
-function showThread(ts) {
-  const h = STATE.history.find((x) => String(x.ts) === String(ts));
-  if (!h) return;
-  STATE.activeId = h.ts;
-  showPage("thread");
-  $("thread-title").textContent = h.prompt || "未命名任務";
-  $("thread-meta").textContent = [h.dispatched_at, (h.backends || []).join(" → "), h.collab_mode].filter(Boolean).join(" · ");
-  const body = h.consensus || h.review_details || "沒有成果摘要。";
-  $("thread-body").innerHTML = `<div class="card"><h3>成果</h3><pre style="white-space:pre-wrap;font:13px/1.55 var(--font)">${esc(String(body).slice(0, 2000))}</pre></div>
-    <button type="button" class="ghost" id="btn-continue">以此接續</button>`;
-  $("btn-continue").onclick = () => {
+function showThread(threadId) {
+  const allThreads = buildThreads();
+  const th = allThreads.find((x) => String(x.id) === String(threadId))
+    || allThreads.find((x) => x.turns.some((t) => String(t.ts) === String(threadId)));
+  if (!th) return;
+  STATE.activeId = th.id;
+  const lastTurn = th.turns[th.turns.length - 1];
+  if (lastTurn) {
     STATE.continueFrom = {
-      prompt: h.prompt || "",
-      consensus: String(h.consensus || "").slice(0, 3000),
-      thread: h.thread || "",
-      step: h.step || 1
+      prompt: lastTurn.prompt || "",
+      consensus: String(lastTurn.consensus || lastTurn.review_details || "").slice(0, 3000),
+      thread: lastTurn.thread || th.id,
+      step: lastTurn.step || th.turns.length
     };
-    showPage("handoff");
-    $("prompt").focus();
-    toast("下一輪會帶上這一筆的成果，不會只重貼原 prompt。");
-  };
-  renderHistory();
+  }
+  savePrefs();
+  showPage("thread");
+  $("thread-title").textContent = th.title || "未命名對話串";
+  $("thread-meta").textContent = [`共 ${th.turns.length} 輪`, th.dispatched_at, th.backends.join(" → "), th.project].filter(Boolean).join(" · ");
+  $("thread-body").innerHTML = th.turns.map((h, idx) => {
+    const stepNum = h.step || (idx + 1);
+    const body = h.consensus || h.review_details || "沒有成果摘要。";
+    const extraReview = (h.consensus && h.review_details && h.review_details !== h.consensus)
+      ? `<details style="margin-top:8px;border-top:1px dashed var(--line);padding-top:6px"><summary class="sub" style="cursor:pointer">展開交叉審查與執行明細</summary><pre style="white-space:pre-wrap;word-break:break-word;font:12.5px/1.55 var(--font);margin-top:6px;color:var(--fg2)">${esc(String(h.review_details))}</pre></details>`
+      : "";
+    const who = (h.backends || []).join(" → ") || h.consensus_source || "Agent";
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <h3 style="margin:0">第 ${stepNum} 輪 · ${esc(who)}</h3>
+        <button type="button" class="ghost" data-continue-ts="${esc(h.ts)}">↳ 從此接續</button>
+      </div>
+      <div class="sub" style="margin-top:4px;white-space:pre-wrap;word-break:break-word">指令：${esc(h.prompt || "")}</div>
+      <pre style="white-space:pre-wrap;word-break:break-word;font:13px/1.55 var(--font);margin-top:8px">${esc(String(body))}</pre>
+      ${extraReview}
+      ${renderTurnFiles(h.output_files)}
+    </div>`;
+  }).join("");
+  renderAll();
+  const sc = document.querySelector(".scroll");
+  if (sc) sc.scrollTop = 0;
 }
 
 function bootPrefs() {
@@ -1135,6 +1439,8 @@ function bootPrefs() {
   if (typeof p.threshold === "number") STATE.threshold = p.threshold;
   if (typeof p.lockOrder === "boolean") STATE.lockOrder = p.lockOrder;
   if (p.pack && typeof p.pack === "object") STATE.pack = { ...STATE.pack, ...p.pack };
+  if (p.continueFrom && typeof p.continueFrom === "object") STATE.continueFrom = p.continueFrom;
+  if (p.activeId) STATE.activeId = p.activeId;
   const saved = sessionStorage.getItem(TOKEN_KEY);
   if (saved) $("token").value = saved;
 }
@@ -1149,13 +1455,24 @@ $("workflows").addEventListener("click", (e) => {
   const btn = e.target.closest("button");
   if (!btn) return;
   STATE.workflow = btn.dataset.mode;
-  if (STATE.workflow === "preempt") STATE.lockOrder = false;
-  else STATE.lockOrder = true;
   renderAll();
 });
 $("agent-picks").addEventListener("click", (e) => {
   const btn = e.target.closest("button");
   if (btn) toggleAgent(btn.dataset.agent);
+});
+$("holder-select").addEventListener("change", (e) => {
+  setBatonSlot(0, e.target.value);
+});
+$("next-select").addEventListener("change", (e) => {
+  setBatonSlot(1, e.target.value);
+});
+$("btn-swap-holders").addEventListener("click", swapTopHolders);
+$("btn-lock-order").addEventListener("click", () => {
+  STATE.lockOrder = !STATE.lockOrder;
+  if (!STATE.lockOrder && STATE.workflow === "preempt") applyAutoChain();
+  renderAll();
+  toast(STATE.lockOrder ? "已鎖定目前排定的棒次順序。" : "已切換為依剩餘額度自動排鏈。");
 });
 $("chain").addEventListener("click", (e) => {
   const btn = e.target.closest("button");
@@ -1171,7 +1488,6 @@ $("model-editors").addEventListener("change", (e) => {
   const sel = e.target.closest("select[data-model-agent]");
   if (!sel) return;
   STATE.models[sel.dataset.modelAgent] = sel.value;
-  if (STATE.workflow === "preempt") STATE.lockOrder = false;
   renderAll();
 });
 $("model-editors").addEventListener("click", (e) => {
@@ -1194,72 +1510,87 @@ $("pack").addEventListener("change", (e) => {
 });
 $("threshold").addEventListener("input", () => {
   STATE.threshold = Number($("threshold").value) / 100;
-  if (STATE.workflow === "preempt") STATE.lockOrder = false;
   renderAll();
 });
-async function deleteHistory(indexes, clear) {
+$("turns").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-continue-ts]");
+  if (!btn) return;
+  const h = STATE.history.find((x) => String(x.ts) === String(btn.dataset.continueTs));
+  if (h) continueFromTurn(h);
+});
+$("thread-body").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-continue-ts]");
+  if (!btn) return;
+  const h = STATE.history.find((x) => String(x.ts) === String(btn.dataset.continueTs));
+  if (h) continueFromTurn(h);
+});
+
+async function modifyThreadHistory(action, threadId, clearAll) {
   if (!STATE.sameOrigin) {
-    toast("預覽不能刪雲端歷史。");
+    toast("預覽不能修改雲端歷史。");
     return;
   }
-  const payload = clear
+  const allThreads = buildThreads();
+  const th = allThreads.find((x) => String(x.id) === String(threadId));
+  const items = th ? th.turns.map((h) => ({
+    ts: h.ts,
+    prompt: String(h.prompt || "").slice(0, 120),
+    thread: h.thread || ""
+  })) : [];
+  const payload = clearAll
     ? { action: "clear" }
-    : {
-        action: "delete",
-        items: indexes.map((i) => {
-          const h = STATE.history[i] || {};
-          return {
-            ts: h.ts,
-            prompt: String(h.prompt || "").slice(0, 120),
-            thread: h.thread || ""
-          };
-        })
-      };
+    : { action, threads: threadId ? [threadId] : [], items };
   try {
     const data = await postJson("/api/workbench/history", payload);
-    if (!data.removed && data.ambiguous) {
-      toast("同一時間有多筆，沒有刪，避免刪錯。");
-      return;
+    if (action === "archive" || action === "unarchive") {
+      toast(action === "archive" ? "已封存對話串。" : "已取消封存對話串。");
+    } else {
+      toast(clearAll ? "已清除全部歷史。" : "已刪除對話串（共 " + (data.removed || items.length || 1) + " 筆）。");
     }
-    toast(clear ? "已清除全部歷史。" : "已刪除 " + (data.removed || 0) + " 筆。");
-    if (STATE.activeId && indexes.some((i) => String(STATE.history[i]?.ts) === String(STATE.activeId))) {
+    if (threadId && (String(STATE.activeId) === String(threadId) || String(STATE.continueFrom?.thread) === String(threadId))) {
       STATE.activeId = null;
+      STATE.continueFrom = null;
+      savePrefs();
     }
     await refresh();
   } catch (err) {
     if (err.status === 401) showPage("rules");
-    toast(err.status === 401 ? "要先在規則頁輸入 Console Token。" : ("沒有刪除：" + (err.message || "未知錯誤")));
+    toast(err.status === 401 ? "要先在規則頁輸入 Console Token。" : ("操作失敗：" + (err.message || "未知錯誤")));
   }
 }
 
 $("history").addEventListener("click", (e) => {
-  const del = e.target.closest("[data-delete-idx]");
+  const arch = e.target.closest("[data-archive-thread]");
+  if (arch) {
+    modifyThreadHistory(arch.dataset.archiveMode || "archive", arch.dataset.archiveThread, false);
+    return;
+  }
+  const del = e.target.closest("[data-delete-thread]");
   if (del) {
-    const idx = Number(del.dataset.deleteIdx);
-    const h = STATE.history[idx];
-    const title = String(h?.prompt || "這筆").replace(/\s+/g, " ").slice(0, 40);
-    if (!window.confirm("刪除這筆歷史？\n" + title + "\n不能復原。不會刪工作區檔案。")) return;
-    deleteHistory([idx], false);
+    const tid = del.dataset.deleteThread;
+    if (!window.confirm("確定刪除整個對話串？\n不能復原，但不會刪除工作區產出檔案。")) return;
+    modifyThreadHistory("delete", tid, false);
     return;
   }
   const btn = e.target.closest(".item");
-  if (btn) showThread(btn.dataset.ts);
+  if (btn && btn.dataset.thread) showThread(btn.dataset.thread);
 });
 $("btn-clear-history").addEventListener("click", () => {
   if (!STATE.history.length) { toast("沒有可刪的歷史。"); return; }
   if (!window.confirm("清除全部派工歷史？紀錄檔裡的每一筆都會刪掉，不只畫面上這幾筆。不能復原。不會刪工作區檔案。")) return;
-  deleteHistory([], true);
+  modifyThreadHistory("clear", "", true);
 });
 $("btn-refresh").addEventListener("click", refresh);
 $("btn-new").addEventListener("click", () => {
   showPage("handoff");
   STATE.continueFrom = null;
+  STATE.activeId = null;
+  STATE.turns = [];
+  savePrefs();
+  renderAll();
   $("prompt").value = "";
   $("prompt").focus();
-});
-$("btn-legacy").addEventListener("click", () => {
-  const url = LIVE + "/workbench-c";
-  window.open(url, "_blank", "noopener");
+  toast("已開啟全新對話串（第 1 輪）。");
 });
 $("btn-rail").addEventListener("click", () => document.body.classList.toggle("show-rail"));
 $("btn-go").addEventListener("click", dispatchTask);
@@ -1272,9 +1603,86 @@ $("token").addEventListener("change", () => {
   else sessionStorage.removeItem(TOKEN_KEY);
 });
 
+async function loadKavisGovernance() {
+  const bodyEl = $("kavis-gov-body");
+  const metaEl = $("kavis-gov-meta");
+  const badgeEl = $("nav-kavis-gov");
+  if (!bodyEl) return;
+  try {
+    const r = await fetch("/api/workbench/kavis_governance", { credentials: "same-origin" });
+    const data = await r.json();
+    if (!data || !data.ok) {
+      metaEl.textContent = "K.A.V.I.S. Hub 狀態：" + (data?.error || "未連線");
+      bodyEl.innerHTML = "<div class='sub'>目前無待審批項目或 Hub 端點未啟用。</div>";
+      return;
+    }
+    const approvals = Array.isArray(data.pending_approvals) ? data.pending_approvals : [];
+    const proposals = Array.isArray(data.pending_proposals) ? data.pending_proposals : [];
+    const totalPending = approvals.length + proposals.length;
+    if (badgeEl) badgeEl.textContent = totalPending > 0 ? ("待審 " + totalPending) : "v2.1 🟢";
+    metaEl.textContent = "引擎：" + (data.engine || "kavis-v2.1") + " · 端點：" + (data.hub_url || "local") + " · 待處理審批：" + approvals.length + " · 演化提案：" + proposals.length;
+    let html = "";
+    if (!approvals.length && !proposals.length) {
+      html = "<div class='sub' style='color:var(--ok)'>✅ 目前所有 L2/L3 高風險操作與夜間自我演化提案皆已清零。</div>";
+    } else {
+      approvals.forEach((a) => {
+        html += "<div style='padding:8px 0;border-bottom:1px solid var(--line)'>" +
+          "<div><b>[" + esc(a.risk_tier || "L2") + "] 審批卡 #" + esc(a.id) + "</b> · <code>" + esc(a.action_type || "") + "</code> (" + esc(a.target_scope || "") + ")</div>" +
+          "<div class='sub'>" + esc(a.summary || "") + "</div>" +
+          (a.blast_radius ? "<div class='sub'>💥 爆炸半徑：" + esc(a.blast_radius) + " | ⏪ 回滾：" + esc(a.rollback_plan || "") + "</div>" : "") +
+          "<div class='row-actions' style='margin-top:6px'>" +
+          "<button type='button' class='icon-btn' data-kavis-act='resolve_approval' data-id='" + esc(a.id) + "' data-approve='1'>✅ 批准執行</button>" +
+          "<button type='button' class='icon-btn' data-kavis-act='resolve_approval' data-id='" + esc(a.id) + "' data-approve='0'>❌ 拒絕並降級</button>" +
+          "</div></div>";
+      });
+      proposals.forEach((p) => {
+        html += "<div style='padding:8px 0;border-bottom:1px solid var(--line)'>" +
+          "<div><b>[軌道 C 信任演化提案 #" + esc(p.id) + "]</b> · <code>" + esc(p.action_type || "") + "</code> → 建議升格至 <b>" + esc(p.proposed_tier || "L1") + "</b></div>" +
+          "<div class='sub'>" + esc(p.reason || "") + "</div>" +
+          "<div class='row-actions' style='margin-top:6px'>" +
+          "<button type='button' class='icon-btn' data-kavis-act='resolve_proposal' data-id='" + esc(p.id) + "' data-approve='1'>✅ 批准升格</button>" +
+          "<button type='button' class='icon-btn' data-kavis-act='resolve_proposal' data-id='" + esc(p.id) + "' data-approve='0'>❌ 維持原級</button>" +
+          "</div></div>";
+      });
+    }
+    bodyEl.innerHTML = html;
+  } catch (_e) {
+    bodyEl.innerHTML = "<div class='sub'>無法讀取 /api/workbench/kavis_governance。</div>";
+  }
+}
+
+if ($("btn-refresh-gov")) $("btn-refresh-gov").addEventListener("click", loadKavisGovernance);
+if ($("kavis-gov-body")) {
+  $("kavis-gov-body").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-kavis-act]");
+    if (!btn) return;
+    const action = btn.dataset.kavisAct;
+    const id = btn.dataset.id;
+    const approved = btn.dataset.approve === "1";
+    const body = action === "resolve_approval"
+      ? { action, approval_id: id, approved }
+      : { action, proposal_id: Number(id) || id, approved };
+    try {
+      const r = await fetch("/api/workbench/kavis_governance", {
+        method: "POST",
+        headers: writeHeaders(),
+        credentials: "same-origin",
+        body: JSON.stringify(body),
+      });
+      const res = await r.json();
+      if (!r.ok || !res.ok) throw new Error(res.detail || "操作失敗");
+      toast(approved ? "已批准。" : "已拒絕。");
+      await loadKavisGovernance();
+    } catch (err) {
+      toast("審批操作失敗：" + (err.message || "未知錯誤"));
+    }
+  });
+}
+
 bootPrefs();
 renderPack();
 refresh();
+loadKavisGovernance();
 </script>
 </body>
 </html>

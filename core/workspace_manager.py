@@ -419,10 +419,7 @@ def list_project_files(proj_dir: Path) -> list[dict[str, Any]]:
         if not p.is_file():
             continue
         rel = p.relative_to(proj_dir)
-        if any(
-            part.startswith(".git") or part in _SKIP_WORKSPACE_DIRS
-            for part in rel.parts
-        ):
+        if any(part.startswith(".git") or part in _SKIP_WORKSPACE_DIRS for part in rel.parts):
             continue
         try:
             st = p.stat()

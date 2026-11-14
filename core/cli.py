@@ -525,6 +525,111 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_status(args: argparse.Namespace) -> int:
+    """Unified overview: Web Workbench service, LLM pools, Agent CLIs, and recent threads."""
+    import json  # noqa: PLC0415
+    import os  # noqa: PLC0415
+    import platform  # noqa: PLC0415
+    import urllib.request  # noqa: PLC0415
+
+    from core.cli_run import _available_agents, _build_backends, _recent_threads  # noqa: PLC0415
+    from core.cli_ui import C, load_config  # noqa: PLC0415
+    from core.env import config_dir, find_env_file, load_env  # noqa: PLC0415
+
+    env_file = find_env_file()
+    if env_file:
+        load_env(env_file)
+
+    cfg = load_config()
+    cfg_dir = config_dir()
+
+    # 1. Probe local Web Workbench (/healthz)
+    port = int(os.environ.get("STATUS_PORT") or os.environ.get("KHAVIS_PORT") or 8080)
+    wb_ok = False
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=1.5) as resp:
+            wb_ok = resp.status == 200
+    except Exception:  # noqa: BLE001
+        wb_ok = False
+
+    # 2. LLM Pools summary
+    pools_ready: list[str] = []
+    pools_total = 0
+    with suppress(Exception):
+        reg, _ = _load_router(cfg_dir)
+        pools_total = len(reg)
+        for plug in reg:
+            with suppress(Exception):
+                h = plug.health_check()
+                if (isinstance(h, dict) and h.get("ok")) or (not isinstance(h, dict) and bool(h)):
+                    pools_ready.append(plug.name)
+
+    # 3. Agent CLIs summary
+    agent_rows = _available_agents(_build_backends(cfg.get("agent_models")))
+    agents_ready = [r["id"] for r in agent_rows if r["status"] in ("ready", "api_fallback")]
+
+    # 4. Recent threads
+    threads = _recent_threads(3)
+
+    if getattr(args, "json", False):
+        print(
+            json.dumps(
+                {
+                    "version": VERSION,
+                    "python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+                    "platform": f"{platform.system()} {platform.release()}",
+                    "workbench": {"port": port, "online": wb_ok},
+                    "pools": {"ready": pools_ready, "total": pools_total},
+                    "agents": agent_rows,
+                    "cli_defaults": {"agents": cfg.get("agents"), "mode": cfg.get("mode")},
+                    "recent_threads": [
+                        {
+                            "thread": t["thread"],
+                            "turns": t["max_step"],
+                            "prompt": str(t["latest"].get("prompt") or "")[:80],
+                        }
+                        for t in threads
+                    ],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0
+
+    wb_badge = (
+        C.green(f"● 運行中 (127.0.0.1:{port})") if wb_ok else C.dim(f"○ 未啟動 (port {port})")
+    )
+    print(f"\n  {C.bold('K.H.A.V.I.S. 系統總覽')}  {C.dim('v' + VERSION)}")
+    print(f"  {C.dim('─' * 62)}")
+    print(f"  {C.bold('Web 工作台')}   {wb_badge}")
+    print(
+        f"  {C.bold('LLM 路由池')}   {C.green(str(len(pools_ready)))}{C.dim('/' + str(pools_total) + ' 就緒')}  "
+        f"{C.dim(', '.join(pools_ready[:5]) or '無')}"
+    )
+    print(
+        f"  {C.bold('Agent 後端')}   {C.green(str(len(agents_ready)))}{C.dim('/' + str(len(agent_rows)) + ' 就緒')}  "
+        f"{C.cyan(', '.join(agents_ready))}"
+    )
+    print(
+        f"  {C.bold('CLI 預設值')}   {C.cyan(', '.join(cfg.get('agents', ['khavis'])))} · "
+        f"{C.yellow(str(cfg.get('mode', 'auto_loop')))}"
+    )
+    if threads:
+        print(f"  {C.bold('最近對話串')}   ", end="")
+        first = threads[0]
+        print(
+            f"{C.cyan('#' + first['thread'])} (第 {first['max_step']} 輪) — "
+            f"{str(first['latest'].get('prompt') or '')[:34]}"
+        )
+    print(f"  {C.dim('─' * 62)}")
+    hint_line = (
+        '常用指令：khavis team (互動協同) · khavis run "任務" · khavis agents · khavis doctor'
+    )
+    print(f"  {C.dim(hint_line)}\n")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     # Fail fast and loudly. On Python < 3.10 the symptoms are cryptic and
     # misleading — `zip(strict=...)` raises "zip() takes no keyword arguments"
@@ -541,12 +646,28 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
+    epilog = (
+        "快速上手範例:\n"
+        "  khavis status                                  檢視工作台、路由池與 Agent 總覽\n"
+        "  khavis team                                    進入多輪互動式協同終端機 (支援 /config, /history)\n"
+        '  khavis run "重構認證模組" -a claude,codex -m relay  按排定順序接力執行單次任務\n'
+        '  khavis run "補寫單元測試" -c                     接續上一輪對話串繼續執行\n'
+        "  khavis agents                                  列出所有內建與自訂 Agent 狀態\n"
+        '  khavis chat "你好"                             透過 LLM 路由池快速單輪問答\n'
+        "  khavis doctor                                  檢查設定檔與各供應商 API 金鑰狀態"
+    )
     parser = argparse.ArgumentParser(
         prog="khavis",
-        description="K.H.A.V.I.S. — plugin-based router for multiple LLM providers.",
+        description="K.H.A.V.I.S. — 多供應商 LLM 智慧路由與多 Agent 協同終端機。",
+        epilog=epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--version", action="version", version=f"khavis {VERSION}")
     sub = parser.add_subparsers(dest="command")
+
+    p_status = sub.add_parser("status", help="檢視 Web 工作台、LLM 路由池、Agent 與對話串總覽")
+    p_status.add_argument("--json", action="store_true", help="輸出 JSON 格式狀態")
+    p_status.set_defaults(func=_cmd_status)
 
     p_init = sub.add_parser("init", help="write starter config/ files (never overwrites)")
     p_init.add_argument(

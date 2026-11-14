@@ -4,7 +4,7 @@
 #
 # 功能：
 #   1. 檢查環境（Python ≥ 3.11、git、curl）
-#   2. 取得或更新專案到 $KHAVIS_HOME（預設 ~/khavis）
+#   2. 取得或更新專案到 ${KHAVIS_HOME}（預設 ~/khavis）
 #      - 若舊目錄非 git repo，自動備份並無縫遷移 .env、workbench_catalog.json、
 #        custom_agents.json、workspace/、logs/
 #   3. 建立 .venv 並安裝 Python 依賴
@@ -277,7 +277,7 @@ if [[ "$NO_SERVICE" == "true" ]] || ! command -v systemctl >/dev/null 2>&1; then
   log "略過 systemd 服務（無 systemctl 或 --no-service）→ 之後手動啟動："
   log "  $KHAVIS_HOME/.venv/bin/python $KHAVIS_HOME/scripts/status_server.py --port $KHAVIS_PORT"
 else
-log "安裝並啟動 khavis-workbench.service（port $KHAVIS_PORT）…"
+log "安裝並啟動 khavis-workbench.service（port ${KHAVIS_PORT}）…"
 sudo tee /etc/systemd/system/khavis-workbench.service >/dev/null <<EOF
 [Unit]
 Description=K.H.A.V.I.S. Unified Web Workbench & Status Server
@@ -327,7 +327,7 @@ done
 systemctl is-active --quiet khavis-workbench \
   || fail "khavis-workbench 未啟動，請檢查：sudo journalctl -u khavis-workbench -n 40"
 [[ "$HEALTH" == "200" ]] \
-  || fail "健康檢查失敗（HTTP $HEALTH），請檢查：curl -v http://127.0.0.1:${KHAVIS_PORT}/healthz"
+  || fail "健康檢查失敗（HTTP ${HEALTH}），請檢查：curl -v http://127.0.0.1:${KHAVIS_PORT}/healthz"
 ok "khavis-workbench 運行正常 (HTTP 200 @ 127.0.0.1:${KHAVIS_PORT}/healthz)"
 
 for cli_bin in claude codex antigravity minimax opencode; do

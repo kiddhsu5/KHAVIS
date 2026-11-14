@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import base64
 import concurrent.futures
+import contextlib
 import hmac
 import json
 import os
@@ -747,6 +748,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/workbench/workspace",
             "/api/workbench/setup",
             "/api/workbench/capabilities",
+            "/api/workbench/kavis_governance",
+            "/api/kavis/governance",
         )
         if path not in allowed:
             self._send(404, b'{"error":"not found"}', "application/json")
@@ -795,10 +798,8 @@ class Handler(BaseHTTPRequestHandler):
 
             load_env(PROJECT_ROOT / ".env")
             tracker = get_quota_tracker()
-            try:
+            with contextlib.suppress(Exception):
                 refresh_coding_plan_quotas(tracker)
-            except Exception:  # noqa: BLE001 - quota probe must not take down the billboard
-                pass
             snaps = tracker.all_snapshots()
             payload = {"quotas": snaps, "pools": rows, "generated_at": time.time()}
             self._send(
@@ -810,7 +811,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/workbench/history":
             from bot import history as bot_history  # noqa: PLC0415
 
-            raw_items = bot_history.tail(200)
+            raw_items = bot_history.tail(300)
             formatted: list[dict[str, object]] = []
 
             for item in raw_items:
@@ -878,15 +879,16 @@ class Handler(BaseHTTPRequestHandler):
                         "project": proj_str,
                         "thread": str(item.get("thread") or ""),
                         "step": int(item.get("step") or 0) or 1,
+                        "archived": bool(item.get("archived", False)),
                         # ts 是記錄的唯一識別：舊紀錄的 handle 只到秒，
                         # 同秒的兩筆任務會被誤併成同一個對話串。
                         "ts": float(item.get("ts") or 0.0),
                         "consensus": _redact(
                             str(item.get("consensus") or "").replace(_legacy_cli, "opencode")
-                        )[:12000],
+                        )[:24000],
                         "review_details": _redact(
                             str(item.get("review_details") or "").replace(_legacy_cli, "opencode")
-                        )[:12000],
+                        )[:24000],
                         # 本輪產出文件（只含路徑/狀態/大小），讓對話區只呈現成果
                         "output_files": raw_out_files,
                     }
@@ -984,7 +986,7 @@ class Handler(BaseHTTPRequestHandler):
             mime_type = mimetypes.guess_type(resolved.name)[0] or "application/octet-stream"
             ascii_name = resolved.name.encode("ascii", "ignore").decode("ascii") or "download"
             encoded_name = quote(resolved.name)
-            disp = f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{encoded_name}'
+            disp = f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{encoded_name}"
             self._send(
                 200,
                 data,
@@ -1047,6 +1049,16 @@ class Handler(BaseHTTPRequestHandler):
                 "application/json; charset=utf-8",
             )
             return
+        if path in ("/api/workbench/kavis_governance", "/api/kavis/governance"):
+            from bot.backends.kavis_tencent import fetch_kavis_governance_status  # noqa: PLC0415
+
+            payload = fetch_kavis_governance_status()
+            self._send(
+                200,
+                json.dumps(payload, ensure_ascii=False).encode(),
+                "application/json; charset=utf-8",
+            )
+            return
         if path in ("/dashboard", "/wall"):
             from bot import history as bot_history  # noqa: PLC0415
             from web.dashboard import (  # noqa: PLC0415
@@ -1083,14 +1095,27 @@ class Handler(BaseHTTPRequestHandler):
             from bot import history as bot_history  # noqa: PLC0415
 
             action = str(payload.get("action") or "delete").strip().lower()
+            raw_threads = payload.get("threads")
+            threads = (
+                [str(t).strip() for t in raw_threads if str(t or "").strip()]
+                if isinstance(raw_threads, list)
+                else []
+            )
+            raw_items = payload.get("items")
+            items = raw_items if isinstance(raw_items, list) else []
             try:
                 if action == "clear":
                     result = bot_history.delete_events(clear=True)
                 elif action == "delete":
-                    items = payload.get("items")
-                    if not isinstance(items, list):
+                    if raw_items is not None and not isinstance(raw_items, list):
                         raise ValueError("items 必須是陣列")
-                    result = bot_history.delete_events(items)
+                    result = bot_history.delete_events(items, threads=threads)
+                elif action in ("archive", "unarchive"):
+                    if raw_items is not None and not isinstance(raw_items, list):
+                        raise ValueError("items 必須是陣列")
+                    result = bot_history.set_archived(
+                        items, threads=threads, archived=(action == "archive")
+                    )
                 else:
                     raise ValueError("未知動作")
             except ValueError as exc:
@@ -1146,9 +1171,7 @@ class Handler(BaseHTTPRequestHandler):
             from web.workbench import fetch_provider_model_list  # noqa: PLC0415
 
             try:
-                result = fetch_provider_model_list(
-                    payload if isinstance(payload, dict) else {}
-                )
+                result = fetch_provider_model_list(payload if isinstance(payload, dict) else {})
             except ValueError as exc:
                 self._send(
                     400,
@@ -1179,9 +1202,11 @@ class Handler(BaseHTTPRequestHandler):
 
                 try:
                     updated = update_workbench_models_config(
-                        {"action": "set_agent_models",
-                         "agent": payload.get("agent"),
-                         "models": payload.get("models")}
+                        {
+                            "action": "set_agent_models",
+                            "agent": payload.get("agent"),
+                            "models": payload.get("models"),
+                        }
                     )
                 except ValueError as exc:
                     self._send(
@@ -1313,6 +1338,40 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        if path in ("/api/workbench/kavis_governance", "/api/kavis/governance"):
+            if not path.startswith("/api/workbench/") and not self._require_workbench_write_token():
+                return
+            payload = self._read_json_payload()
+            if payload is None:
+                return
+            from bot.backends.kavis_tencent import (  # noqa: PLC0415
+                resolve_kavis_approval,
+                resolve_kavis_proposal,
+            )
+
+            action = str(payload.get("action") or "resolve_approval").strip().lower()
+            approved = bool(payload.get("approved", False))
+            try:
+                if action == "resolve_approval":
+                    aid = str(payload.get("approval_id") or "").strip()
+                    by = str(payload.get("decided_by") or "khavis-workbench").strip()
+                    res = resolve_kavis_approval(aid, approved=approved, decided_by=by)
+                elif action == "resolve_proposal":
+                    pid = payload.get("proposal_id")
+                    if pid is None:
+                        raise ValueError("proposal_id is required")
+                    res = resolve_kavis_proposal(pid, approved=approved)
+                else:
+                    raise ValueError(f"Unsupported action: {action}")
+            except ValueError as exc:
+                self._send_json(400, {"ok": False, "detail": str(exc)})
+                return
+            except Exception as exc:  # noqa: BLE001
+                self._send_json(502, {"ok": False, "detail": exc.__class__.__name__})
+                return
+            self._send_json(200, res)
+            return
+
         if path == "/api/workbench/dispatch":
             content_len = int(self.headers.get("Content-Length", 0))
             if content_len <= 0 or content_len > 35 * 1024 * 1024:
@@ -1331,15 +1390,35 @@ class Handler(BaseHTTPRequestHandler):
                 payload = {}
 
             prompt = str(payload.get("prompt") or "").strip()
+            user_prompt = str(payload.get("user_prompt") or "").strip()
+            raw_order = payload.get("agent_order") or payload.get("order")
+            agent_order = (
+                [str(a).strip() for a in raw_order if str(a).strip()]
+                if isinstance(raw_order, list)
+                else []
+            )
+            lock_order = bool(
+                payload.get("lock_order")
+                if "lock_order" in payload
+                else payload.get("lockOrder", False)
+            )
+            workflow = str(payload.get("workflow") or "").strip().lower()
             raw_agents = (
                 payload.get("agents")
                 or payload.get("targets")
                 or payload.get("agent")
+                or agent_order
                 or ["khavis"]
             )
             agents = (
                 [str(raw_agents)] if isinstance(raw_agents, str) else [str(a) for a in raw_agents]
             )
+            if agent_order:
+                agent_set = set(agents)
+                ordered_agents = [a for a in agent_order if a in agent_set] + [
+                    a for a in agents if a not in agent_order
+                ]
+                agents = ordered_agents if ordered_agents else list(agent_order)
             capability = payload.get("capability") or None
             raw_models = payload.get("agent_models")
             agent_models = raw_models if isinstance(raw_models, dict) else {}
@@ -1367,17 +1446,36 @@ class Handler(BaseHTTPRequestHandler):
             project_name = (
                 str(payload.get("project") or payload.get("project_id") or "").strip() or None
             )
-            collab_mode = str(payload.get("collab_mode") or "auto_loop").strip().lower()
+            raw_collab = str(payload.get("collab_mode") or "").strip().lower()
+            if not raw_collab and workflow in (
+                "relay",
+                "preempt",
+                "critique",
+                "parallel",
+                "auto_loop",
+            ):
+                collab_mode = workflow
+            else:
+                collab_mode = raw_collab or "auto_loop"
             previous_context = (
                 payload.get("previous_context")
                 if isinstance(payload.get("previous_context"), dict)
                 else None
             )
-            # 對話串識別：前端在每輪帶上 thread id；第一輪沒有前例時由後端產生。
+            # 對話串識別：前端在每輪帶上 thread id；第一輪沒有前例時由後端產生統一 base36 格式。
             _prev_ctx = previous_context if isinstance(previous_context, dict) else {}
-            thread_id = str(_prev_ctx.get("thread") or "").strip() or f"t{int(time.time() * 1000)}"
+            _ms = max(1, int(time.time() * 1000))
+            _b36_chars: list[str] = []
+            _b36_alpha = "0123456789abcdefghijklmnopqrstuvwxyz"
+            while _ms:
+                _ms, _rem = divmod(_ms, 36)
+                _b36_chars.append(_b36_alpha[_rem])
+            _default_tid = "t" + "".join(reversed(_b36_chars))
+            thread_id = (
+                str(payload.get("thread") or _prev_ctx.get("thread") or "").strip() or _default_tid
+            )
             try:
-                thread_step = int(_prev_ctx.get("step") or 0) + 1
+                thread_step = int(payload.get("step") or (_prev_ctx.get("step") or 0) + 1)
             except (TypeError, ValueError):
                 thread_step = 1
 
@@ -1427,6 +1525,7 @@ class Handler(BaseHTTPRequestHandler):
                 "antigravity",
                 "minimax",
                 "opencode",
+                "cmdcode",
                 *(str(a) for a in agents),
             }
             for aid in all_known_ids:
@@ -1519,6 +1618,8 @@ class Handler(BaseHTTPRequestHandler):
                         previous_context=previous_context,
                         thinking_mode=thinking_mode,
                         thinking_parameter=thinking_parameter,
+                        agent_order=agent_order or agents,
+                        lock_order=lock_order,
                     )
                 )
             finally:
@@ -1531,7 +1632,7 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "ts": time.time(),
                     "kind": "workbench",
-                    "prompt": prompt,
+                    "prompt": user_prompt or prompt,
                     "backends": list(agents),
                     "collab_mode": orch["collab_mode"],
                     "consensus_source": orch["consensus_source"]
@@ -1554,6 +1655,8 @@ class Handler(BaseHTTPRequestHandler):
                 "thread": thread_id,
                 "step": thread_step,
                 "collab_mode": orch["collab_mode"],
+                "agent_order": orch.get("agent_order", list(agents)),
+                "lock_order": bool(orch.get("lock_order", lock_order)),
                 "consensus": orch["consensus"],
                 "review_details": orch.get("review_details", ""),
                 "output_files": turn_output_files,

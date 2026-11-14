@@ -24,6 +24,7 @@ import os
 import ssl
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -33,6 +34,7 @@ from .base import Backend, HealthResult
 # 騰訊雲節點的對外服務：khavis 狀態頁／工作台在 443（自簽憑證）。
 # hermes gateway 若有獨立 HTTP 埠，用 KAVIS_TENCENT_ENDPOINT 覆蓋即可。
 DEFAULT_ENDPOINT = ""  # 由 KAVIS_TENCENT_ENDPOINT 指定；未設定時顯示未配置
+DEFAULT_HUB_URL = "http://127.0.0.1:18090"
 DEFAULT_MODEL = "MiniMax-M3"
 _HEALTH_TIMEOUT_S = 2.5
 _DISPATCH_TIMEOUT_S = 180
@@ -52,6 +54,129 @@ def tencent_endpoint() -> str:
 
 def dispatch_url() -> str:
     return os.environ.get("KAVIS_TENCENT_DISPATCH_URL", "").strip()
+
+
+def governance_hub_url() -> str:
+    """Return the kavis v2.1 Hub base URL for dual-axis governance & approval cards."""
+    explicit = os.environ.get("KAVIS_HUB_URL", "").strip()
+    if explicit:
+        return explicit.rstrip("/")
+    disp = dispatch_url()
+    if disp and "/v1/" in disp:
+        return disp.split("/v1/", 1)[0].rstrip("/")
+    return DEFAULT_HUB_URL
+
+
+def _json_request(
+    url: str,
+    *,
+    method: str = "GET",
+    payload: dict[str, Any] | None = None,
+    timeout_s: float = _HEALTH_TIMEOUT_S,
+) -> dict[str, Any]:
+    headers = {"Accept": "application/json"}
+    api_key = os.environ.get("KAVIS_TENCENT_API_KEY", "").strip()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    data: bytes | None = None
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(payload).encode("utf-8")
+    kwargs: dict[str, Any] = {"timeout": timeout_s}
+    if url.lower().startswith("https"):
+        kwargs["context"] = _probe_ssl_context()
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    with urllib.request.urlopen(req, **kwargs) as resp:
+        raw = resp.read().decode("utf-8", errors="replace")
+        parsed = json.loads(raw) if raw.strip() else {}
+        return parsed if isinstance(parsed, dict) else {"data": parsed}
+
+
+def fetch_kavis_governance_status(
+    hub_url: str | None = None, timeout_s: float = _HEALTH_TIMEOUT_S
+) -> dict[str, Any]:
+    """Fetch kavis v2.1 dual-axis governance snapshot, L2/L3 approval cards, and Track C proposals."""
+    base = (hub_url or governance_hub_url()).rstrip("/")
+    if not base:
+        return {
+            "ok": False,
+            "hub_url": "",
+            "error": "hub_url_not_configured",
+            "pending_approvals": [],
+            "pending_proposals": [],
+        }
+    try:
+        overview = _json_request(f"{base}/api/v1/overview", timeout_s=timeout_s)
+    except urllib.error.HTTPError as exc:
+        return {
+            "ok": False,
+            "hub_url": base,
+            "error": f"http_{exc.code}",
+            "pending_approvals": [],
+            "pending_proposals": [],
+        }
+    except (OSError, ValueError) as exc:
+        return {
+            "ok": False,
+            "hub_url": base,
+            "error": f"unreachable ({exc.__class__.__name__})",
+            "pending_approvals": [],
+            "pending_proposals": [],
+        }
+
+    approvals = overview.get("pending_approvals")
+    proposals = overview.get("pending_proposals")
+    return {
+        "ok": True,
+        "hub_url": base,
+        "engine": f"kavis-v{overview.get('version') or '2.1'}",
+        "status": overview,
+        "pending_approvals": approvals if isinstance(approvals, list) else [],
+        "pending_proposals": proposals if isinstance(proposals, list) else [],
+    }
+
+
+def resolve_kavis_approval(
+    approval_id: str,
+    *,
+    approved: bool,
+    decided_by: str = "khavis-workbench",
+    hub_url: str | None = None,
+    timeout_s: float = _HEALTH_TIMEOUT_S,
+) -> dict[str, Any]:
+    """Approve or reject a pending L2/L3 approval card on kavis v2.1 Hub."""
+    aid = str(approval_id or "").strip()
+    if not aid:
+        raise ValueError("approval_id is required")
+    base = (hub_url or governance_hub_url()).rstrip("/")
+    res = _json_request(
+        f"{base}/api/v1/approvals/{urllib.parse.quote(aid, safe='')}/resolve",
+        method="POST",
+        payload={"approved": bool(approved), "decided_by": decided_by},
+        timeout_s=timeout_s,
+    )
+    return {"ok": bool(res.get("ok", True)), "approval_id": aid, "approved": bool(approved), **res}
+
+
+def resolve_kavis_proposal(
+    proposal_id: int | str,
+    *,
+    approved: bool,
+    hub_url: str | None = None,
+    timeout_s: float = _HEALTH_TIMEOUT_S,
+) -> dict[str, Any]:
+    """Approve or reject a Track C Nightly Consolidation trust-upgrade proposal on kavis v2.1 Hub."""
+    pid = str(proposal_id or "").strip()
+    if not pid:
+        raise ValueError("proposal_id is required")
+    base = (hub_url or governance_hub_url()).rstrip("/")
+    res = _json_request(
+        f"{base}/api/v1/proposals/{urllib.parse.quote(pid, safe='')}/resolve",
+        method="POST",
+        payload={"approved": bool(approved)},
+        timeout_s=timeout_s,
+    )
+    return {"ok": bool(res.get("ok", True)), "proposal_id": pid, "approved": bool(approved), **res}
 
 
 def probe_tencent_kavis(endpoint: str | None = None, timeout_s: float = _HEALTH_TIMEOUT_S) -> dict[str, Any]:
@@ -135,7 +260,7 @@ class KavisTencentBackend(Backend):
                 backend=self.name,
                 ok=False,
                 error=f"http_{exc.code}",
-                text="騰訊雲 K.A.V.I.S. dispatch 失敗（HTTP {code}）".format(code=exc.code),
+                text=f"騰訊雲 K.A.V.I.S. dispatch 失敗（HTTP {exc.code}）",
                 model=self._model,
                 latency_ms=int((time.perf_counter() - t0) * 1000),
             )
@@ -157,6 +282,20 @@ class KavisTencentBackend(Backend):
                 text = str(message.get("content") or "")
         if not text and isinstance(payload, dict):
             text = str(payload.get("content") or payload.get("output") or "")
+
+        extra: dict[str, str] = {}
+        if isinstance(payload, dict):
+            for k in (
+                "kavis_risk_tier",
+                "kavis_weight_tier",
+                "kavis_status",
+                "kavis_approval_id",
+                "kavis_pool",
+            ):
+                val = payload.get(k)
+                if val is not None and str(val).strip():
+                    extra[k] = str(val).strip()
+
         return BackendResult(
             backend=self.name,
             ok=bool(text),
@@ -164,4 +303,5 @@ class KavisTencentBackend(Backend):
             text=text or "騰訊雲 K.A.V.I.S. 回傳空結果",
             model=str(payload.get("model") or self._model) if isinstance(payload, dict) else self._model,
             latency_ms=int((time.perf_counter() - t0) * 1000),
+            extra=extra,
         )

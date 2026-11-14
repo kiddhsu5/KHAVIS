@@ -18,14 +18,14 @@ KHAVIS 整合多個 CLI Agent 與可自行部署的 LLM 路由。你可以共用
 
 文件庫會按主題歸檔，保留已記錄的來源任務，並提供格式篩選、預覽與下載。分類採本機規則與受限內容樣本，不搬動文件、不呼叫付費模型，也不是完整全文或向量知識庫。格式與邊界見[文件庫與設定說明](docs/CONFIGURATION.md)。
 
-共用工作區適合接力；Git Worktree 適合隔離平行變更。採用成果前，請查看 Diff 與檢查結果。Agent 回覆「完成」本身不等於測試通過或可以合併。KHAVIS 是工作區平台；`K.A.V.I.S.` 是選用的內建 Agent 層。
+共用工作區適合接力；Git Worktree 適合隔離平行變更。採用成果前，請查看 Diff 與檢查結果。Agent 回覆「完成」本身不等於測試通過或可以合併。KHAVIS 是公開開源的工作區平台與 BYOK 路由器；**K.A.V.I.S.** 則是選用的本地 LangGraph Agent 層，或可透過 OpenAI 相容端點對接的獨立執行引擎。
 
 **從這裡開始：**[快速開始](#快速開始)。若只想先檢查控制流程，請使用下方明確標示的離線 mock 測試；它不會驗證真實供應商或 CLI。
 
 ## 本專案中的名稱
 
-- **KHAVIS** 是平台與 repository：包含 provider registry、capability router、設定檔、CLI、選用的 OpenAI 相容 HTTP server、稽核與預算元件，以及 provider plugin。
-- **K.A.V.I.S.** 是選用的多代理與部署層所使用的內建 Agent 名稱。依照安裝的 extras 與部署設定，它可以執行本地 LangGraph 團隊，或透過已設定的 `deploy/kavis_adapter.py` 橋接器派送請求。它不是 provider，不會自行保證某個遠端服務或固定模型。
+- **KHAVIS** 是本開源平台與核心倉庫：包含 Web 工作台（`/workbench`、`/workbench-c`、`/agents`、`/database`）、多 CLI 終端機協同工具（`khavis team` / `khavis run`）、provider registry、capability router、OpenAI 相容 HTTP server、稽核與額度熔斷元件，以及 provider plugin。
+- **K.A.V.I.S.** 是選用的 Agent 執行層整合名稱：可執行本倉庫內建的本地 LangGraph 團隊（`agents/`），或透過 OpenAI 相容端點與治理狀態 API 串接獨立部署的 K.A.V.I.S. Hub（`KAVIS_HUB_URL`）及選用的 `deploy/kavis_adapter.py` 橋接器。K.A.V.I.S. 原生自主引擎目前獨立維運，不影響 KHAVIS 本體完整開源使用。
 - **外部 CLI 工具**（例如 Claude Code、Codex、Antigravity、MiniMax Code、OpenCode、Aider，或其他本機命令）是整合對象，不是額外的 KHAVIS 模型。它們必須另外安裝、登入並設定；能用哪些模型與命令，取決於該工具與供應商當下的狀態。
 
 目前可用的 pool 由設定檔決定。不要因為 repository 裡存在某個 plugin，就假定相應的 provider、pool、模型別名、API 額度或外部 CLI 一定可用。送出真實請求前，請檢查 `config/pools.yaml`、環境變數與 `khavis doctor` 的結果。

@@ -16,11 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Iterable
-try:
-    from datetime import UTC, datetime
-except ImportError:
-    from datetime import datetime, timezone
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from typing import Any
 
 _MODE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,31}$")
@@ -277,9 +273,7 @@ def discover_provider_capabilities(
     timeout_s: float = 5.0,
 ) -> list[dict[str, Any]]:
     """Fetch connected provider catalogues concurrently without exposing keys."""
-    merged = dict(os.environ)
-    if values:
-        merged.update({str(k): str(v) for k, v in values.items()})
+    merged = dict(os.environ) if values is None else {str(k): str(v) for k, v in values.items()}
     unique: dict[str, dict[str, Any]] = {}
     for spec in specs:
         env_name = str(spec.get("env") or "").strip()
